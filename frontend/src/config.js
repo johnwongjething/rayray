@@ -7,8 +7,8 @@ const config = {
     API_BASE_URL: 'http://localhost:5000',
   },
   production: {
-    // Trim any whitespace from the env var and ensure fallback URL
-    API_BASE_URL: (process.env.REACT_APP_API_BASE_URL || 'https://rayray.onrender.com').trim(),
+    // Use the new custom domain for production
+    API_BASE_URL: (process.env.REACT_APP_API_BASE_URL || 'https://terryraylogicticsco.xyz/api').trim(),
   },
 };
 
