@@ -25,6 +25,9 @@ from extract_fields import extract_fields
 import pytz
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+@app.route('/api/ping')
+def ping():
+    return {"message": "pong"}, 200
 
 load_dotenv()
 
