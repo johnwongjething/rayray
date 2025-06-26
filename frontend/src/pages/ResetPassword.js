@@ -6,12 +6,47 @@ import { API_BASE_URL } from '../config';
 function ResetPassword({ t = x => x }) {
   const { token } = useParams();
   const [password, setPassword] = useState('');
-  const [msg, setMsg] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const navigate = useNavigate();
 
+  const validatePassword = (password) => {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    if (!/[0-9]/.test(password)) {
+      return 'Password must contain at least one number';
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      return 'Password must contain at least one special character';
+    }
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setSnackbar({ open: true, message: 'Passwords do not match', severity: 'error' });
+      return;
+    }
+
+    // Validate password strength
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setSnackbar({ open: true, message: passwordError, severity: 'error' });
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/reset_password/${token}`, {
         method: 'POST',
@@ -20,34 +55,80 @@ function ResetPassword({ t = x => x }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setSnackbar({ open: true, message: data.message, severity: 'success' });
+        setSnackbar({ open: true, message: data.message || 'Password has been reset successfully', severity: 'success' });
+        // Clear form
+        setPassword('');
+        setConfirmPassword('');
+        // Redirect to login after 2 seconds
         setTimeout(() => navigate('/login'), 2000);
       } else {
-        setSnackbar({ open: true, message: data.error, severity: 'error' });
+        setSnackbar({ open: true, message: data.error || 'Password reset failed', severity: 'error' });
       }
     } catch (err) {
-      setSnackbar({ open: true, message: 'Password reset failed', severity: 'error' });
+      setSnackbar({ open: true, message: 'Password reset failed. Please try again.', severity: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <h2>Reset Password</h2>
-      <form onSubmit={handleSubmit}>
-        <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="New password" required />
-        <button type="submit">Reset Password</button>
-      </form>
-      {msg && <div>{msg}</div>}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </div>
+    <Container maxWidth="sm">
+      <Box sx={{ my: 4, textAlign: 'center' }}>
+        <Typography variant="h3" component="h1" gutterBottom>
+          {t('resetPassword') || 'Reset Password'}
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          Enter your new password below.
+        </Typography>
+        
+        <form onSubmit={handleSubmit}>
+          <TextField
+            fullWidth
+            label="New Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            margin="normal"
+            required
+            disabled={loading}
+            helperText="Password must be at least 8 characters with uppercase, lowercase, number, and special character"
+          />
+          <TextField
+            fullWidth
+            label="Confirm New Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            margin="normal"
+            required
+            disabled={loading}
+            error={confirmPassword && password !== confirmPassword}
+            helperText={confirmPassword && password !== confirmPassword ? "Passwords do not match" : ""}
+          />
+          <Button 
+            type="submit" 
+            variant="contained" 
+            color="primary" 
+            fullWidth
+            sx={{ mt: 2, mb: 2 }}
+            disabled={loading || !password || !confirmPassword}
+          >
+            {loading ? 'Resetting Password...' : 'Reset Password'}
+          </Button>
+        </form>
+        
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </Container>
   );
 }
 

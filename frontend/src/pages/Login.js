@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Container, Typography, Box, TextField, Button, Snackbar, Alert } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 
 function Login({ t = x => x }) {
@@ -70,7 +70,9 @@ function Login({ t = x => x }) {
             {t('login')}
           </Button>
         </form>
-        <a href="/forgot-password">Forgot Password?</a>
+        <Link to="/forgot-password" style={{ textDecoration: 'none', color: '#1976d2', marginTop: '16px', display: 'block' }}>
+          Forgot Password?
+        </Link>
         <Snackbar
           open={!!error}
           autoHideDuration={6000}

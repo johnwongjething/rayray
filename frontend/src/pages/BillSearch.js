@@ -104,6 +104,22 @@ export default function BillSearch({ t = x => x }) {
     return record.status || t('pending');
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return dateString;
+    }
+  };
+
   const columns = [
     // ... other columns ...
     {
@@ -142,6 +158,7 @@ export default function BillSearch({ t = x => x }) {
               <th>{t('customerName')}</th>
               <th>{t('containerNo')}</th>
               <th>{t('status')}</th>
+              <th>{t('createdAt')}</th>
             </tr>
           </thead>
           <tbody>
@@ -152,6 +169,7 @@ export default function BillSearch({ t = x => x }) {
                 <td>{row.customer_name}</td>
                 <td>{row.container_numbers}</td>
                 <td>{getStatus(row)}</td>
+                <td>{formatDate(row.created_at)}</td>
               </tr>
             ))}
           </tbody>
