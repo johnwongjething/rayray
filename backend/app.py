@@ -35,9 +35,9 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
 # CORS configuration for both development and production
 allowed_origins = [
-    'http://localhost:3000',                      # Development
-    'https://rayray.onrender.com',                # Backend itself (optional)
-    'https://rayray-1.onrender.com',              # Your frontend static site
+    'http://localhost:3000',  # Development
+    'https://terryraylogicticsco.xyz',
+    'https://www.terryraylogicticsco.xyz',
 ]
 
 # Add environment variable for additional origins
