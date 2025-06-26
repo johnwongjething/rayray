@@ -458,12 +458,15 @@ def upload():
 
         uploaded_count = 0
         results = []
+        
+        # Save invoice and packing list files once (if they exist)
+        customer_invoice = save_file_with_timestamp(invoice_pdf, 'invoice') if invoice_pdf else None
+        customer_packing_list = save_file_with_timestamp(packing_pdf, 'packing') if packing_pdf else None
+        
         # If no bill_pdfs, still allow upload of invoice/packing only
         if bill_pdfs:
             for bill_pdf in bill_pdfs:
                 pdf_filename = save_file_with_timestamp(bill_pdf, 'bill')
-                customer_invoice = save_file_with_timestamp(invoice_pdf, 'invoice') if invoice_pdf else None
-                customer_packing_list = save_file_with_timestamp(packing_pdf, 'packing') if packing_pdf else None
                 fields = {}
                 if bill_pdf:
                     pdf_path = os.path.join(UPLOAD_FOLDER, pdf_filename)
@@ -499,8 +502,6 @@ def upload():
                 uploaded_count += 1
         else:
             # Only invoice/packing uploaded, no bill_pdf
-            customer_invoice = save_file_with_timestamp(invoice_pdf, 'invoice') if invoice_pdf else None
-            customer_packing_list = save_file_with_timestamp(packing_pdf, 'packing') if packing_pdf else None
             hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
             conn = get_db_conn()
             cur = conn.cursor()
@@ -1160,7 +1161,7 @@ def request_password_reset():
     cur.close()
     conn.close()
 
-    reset_link = f"https://rayray.onrender.com/reset-password/{token}"
+    reset_link = f"https://rayray-1.onrender.com/reset-password/{token}"
     subject = "Password Reset Request"
     body = f"Dear {customer_name},\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link will expire in 1 hour."
     send_simple_email(email, subject, body)
