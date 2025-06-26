@@ -25,9 +25,6 @@ from extract_fields import extract_fields
 import pytz
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-@app.route('/api/ping')
-def ping():
-    return {"message": "pong"}, 200
 
 load_dotenv()
 
@@ -49,6 +46,11 @@ if env_origins and env_origins[0]:
     allowed_origins.extend([origin.strip() for origin in env_origins])
 
 CORS(app, origins=allowed_origins, supports_credentials=True)
+
+@app.route('/api/ping')
+def ping():
+    return {"message": "pong"}, 200
+
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'change-this-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
