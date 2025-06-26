@@ -8,7 +8,7 @@ const config = {
   },
   production: {
     // Trim any whitespace from the env var and ensure fallback URL
-    API_BASE_URL: (process.env.REACT_APP_API_BASE_URL || 'https://arigu5ryw4.execute-api.us-east-1.amazonaws.com/prod').trim(),
+    API_BASE_URL: (process.env.REACT_APP_API_BASE_URL || 'https://rayray.onrender.com').trim(),
   },
 };
 
