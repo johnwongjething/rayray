@@ -1,14 +1,12 @@
-// Get the current environment
 const environment = process.env.NODE_ENV || 'development';
 
 // Initial config object
 const config = {
   development: {
-    API_BASE_URL: 'http://localhost:5000',
+    API_BASE_URL: 'http://localhost:5000', // no /api here
   },
   production: {
-    // Use the new custom domain for production
-    API_BASE_URL: (process.env.REACT_APP_API_BASE_URL || 'https://terryraylogicticsco.xyz/api').trim(),
+    API_BASE_URL: (process.env.REACT_APP_API_BASE_URL || 'https://rayray.onrender.com').trim(), // ✅ no /api
   },
 };
 
