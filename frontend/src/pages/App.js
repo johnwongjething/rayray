@@ -42,6 +42,14 @@ const theme = createTheme({
   },
 });
 
+// Test component for debugging
+const TestRoute = () => (
+  <div style={{ padding: '20px', textAlign: 'center' }}>
+    <h1>Test Route Working!</h1>
+    <p>If you can see this, React Router is working properly.</p>
+  </div>
+);
+
 function App() {
   const [lang, setLang] = useState(localStorage.getItem('lang') || 'en');
   const t = (key, params) => {
@@ -80,6 +88,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword t={t} />} />
             <Route path="/reset-password/:token" element={<ResetPassword t={t} />} />
             <Route path="/accounting-review" element={<AccountingReview t={t} />} />
+            <Route path="/test" element={<TestRoute />} />
             <Route path="*" element={<NotFound t={t} />} />
           </Routes>
           <WeChatButton />

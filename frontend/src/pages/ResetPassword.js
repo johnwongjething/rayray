@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Typography, Box, TextField, Button, Snackbar, Alert } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
@@ -10,6 +10,15 @@ function ResetPassword({ t = x => x }) {
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const navigate = useNavigate();
+
+  // Debug logging
+  useEffect(() => {
+    console.log('ResetPassword component loaded');
+    console.log('Token from URL:', token);
+    if (!token) {
+      setSnackbar({ open: true, message: 'No reset token found in URL', severity: 'error' });
+    }
+  }, [token]);
 
   const validatePassword = (password) => {
     if (password.length < 8) {
@@ -33,6 +42,11 @@ function ResetPassword({ t = x => x }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!token) {
+      setSnackbar({ open: true, message: 'No reset token found', severity: 'error' });
+      return;
+    }
+    
     // Validate passwords match
     if (password !== confirmPassword) {
       setSnackbar({ open: true, message: 'Passwords do not match', severity: 'error' });
@@ -48,12 +62,14 @@ function ResetPassword({ t = x => x }) {
 
     setLoading(true);
     try {
+      console.log('Sending reset request with token:', token);
       const res = await fetch(`${API_BASE_URL}/api/reset_password/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password })
       });
       const data = await res.json();
+      console.log('Reset response:', res.status, data);
       if (res.ok) {
         setSnackbar({ open: true, message: data.message || 'Password has been reset successfully', severity: 'success' });
         // Clear form
@@ -65,6 +81,7 @@ function ResetPassword({ t = x => x }) {
         setSnackbar({ open: true, message: data.error || 'Password reset failed', severity: 'error' });
       }
     } catch (err) {
+      console.error('Reset password error:', err);
       setSnackbar({ open: true, message: 'Password reset failed. Please try again.', severity: 'error' });
     } finally {
       setLoading(false);
@@ -81,6 +98,12 @@ function ResetPassword({ t = x => x }) {
           Enter your new password below.
         </Typography>
         
+        {!token && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            No reset token found in URL. Please check your email link.
+          </Alert>
+        )}
+        
         <form onSubmit={handleSubmit}>
           <TextField
             fullWidth
@@ -90,7 +113,7 @@ function ResetPassword({ t = x => x }) {
             onChange={(e) => setPassword(e.target.value)}
             margin="normal"
             required
-            disabled={loading}
+            disabled={loading || !token}
             helperText="Password must be at least 8 characters with uppercase, lowercase, number, and special character"
           />
           <TextField
@@ -101,7 +124,7 @@ function ResetPassword({ t = x => x }) {
             onChange={(e) => setConfirmPassword(e.target.value)}
             margin="normal"
             required
-            disabled={loading}
+            disabled={loading || !token}
             error={confirmPassword && password !== confirmPassword}
             helperText={confirmPassword && password !== confirmPassword ? "Passwords do not match" : ""}
           />
@@ -111,7 +134,7 @@ function ResetPassword({ t = x => x }) {
             color="primary" 
             fullWidth
             sx={{ mt: 2, mb: 2 }}
-            disabled={loading || !password || !confirmPassword}
+            disabled={loading || !password || !confirmPassword || !token}
           >
             {loading ? 'Resetting Password...' : 'Reset Password'}
           </Button>
