@@ -1,4 +1,4 @@
-# Revised extract_fields.py — AWB now restored to advanced logic, BOL port logic cleaned
+# Final debugged version of extract_fields.py — fix function missing + clean AWB parsing
 
 import re
 import os
@@ -35,6 +35,12 @@ def extract_text_from_pdf(pdf_path):
     response = client.batch_annotate_files(requests=requests)
     return response.responses[0]
 
+def get_center(bounding_box):
+    vertices = bounding_box.vertices
+    x = sum(v.x for v in vertices) / 4
+    y = sum(v.y for v in vertices) / 4
+    return (x, y)
+
 def find_nearest_text_below(label_text, page_response):
     label_coords = []
     candidates = []
@@ -64,41 +70,99 @@ def find_nearest_text_below(label_text, page_response):
             return below_blocks[0][0]
     return ""
 
-def get_center(bounding_box):
-    vertices = bounding_box.vertices
-    x = sum(v.x for v in vertices) / 4
-    y = sum(v.y for v in vertices) / 4
-    return (x, y)
+def parse_bill_of_lading_fields(ocr_text, page_response):
+    lines = [line.strip() for line in ocr_text.split('\n') if line.strip()]
+    n = len(lines)
 
-def parse_common_fields(lines):
-    def next_valid_line(idx):
-        for i in range(idx + 1, min(idx + 5, len(lines))):
-            line = lines[i].strip()
-            if not line or re.match(r'^[0-9]+\.', line):
-                continue
-            return line
+    def next_nonempty(idx):
+        for i in range(idx + 1, n):
+            if lines[i]:
+                return lines[i]
         return ""
 
-    flight_or_vessel = ""
-    product_description = ""
-
+    shipper = ""
     for i, line in enumerate(lines):
-        if re.search(r'(EXPORTING CARRIER|VESSEL NAME|VOYAGE NO|FLIGHT NO)', line, re.IGNORECASE):
-            flight_or_vessel = next_valid_line(i)
+        if re.match(r'2\.? *EXPORTER', line, re.IGNORECASE):
+            next_line = next_nonempty(i)
+            shipper = next_line.split(',')[0].split('(')[0].strip()
             break
 
+    consignee = ""
     for i, line in enumerate(lines):
-        if re.search(r'(DESCRIPTION OF GOODS|DESCRIPTION OF COMMODITIES|PRODUCT NAME|NATURE AND QUANTITY)', line, re.IGNORECASE):
+        if re.match(r'3\.? *CONSIGNED TO', line, re.IGNORECASE):
+            name_parts = []
+            for j in range(1, 4):
+                if i + j < len(lines):
+                    candidate = lines[i + j].strip()
+                    if not candidate:
+                        continue
+                    if re.match(r'(C/O|ATTN|ADDRESS|TEL|FAX)', candidate, re.IGNORECASE):
+                        break
+                    name_parts.append(candidate)
+                    if len(name_parts) >= 2:
+                        break
+            consignee = ' '.join(name_parts)
+            break
+
+    port_of_loading = ""
+    for i, line in enumerate(lines):
+        if "PORT OF LOADING" in line:
+            port_of_loading = next_nonempty(i)
+            break
+
+    port_of_discharge = ""
+    for i, line in enumerate(lines):
+        if "PLACE OF DELIVERY BY ON-CARRIER" in line or "FOREIGN PORT OF UNLOADING" in line or "PORT OF DISCHARGE" in line:
+            port_of_discharge = next_nonempty(i)
+            break
+
+    bl_number = ""
+    for i, line in enumerate(lines):
+        if "B/L NUMBER" in line or "DOCUMENT NUMBER" in line:
+            for j in range(i + 1, min(i + 4, n)):
+                match = re.search(r'\b[A-Z]{3,}[0-9]{6,}\b', lines[j])
+                if match:
+                    bl_number = match.group(0)
+                    break
+            if bl_number:
+                break
+
+    container_numbers = set()
+    for line in lines:
+        matches = re.findall(r'\b([A-Z]{4}\d{7})\b', line)
+        for match in matches:
+            container_numbers.add(match.strip())
+    container_numbers = ', '.join(container_numbers)
+
+    flight_or_vessel = ""
+    for i, line in enumerate(lines):
+        if "EXPORTING CARRIER" in line or "VESSEL NAME" in line:
+            flight_or_vessel = next_nonempty(i)
+            break
+
+    product_description = ""
+    for i, line in enumerate(lines):
+        if re.search(r'(DESCRIPTION OF GOODS|DESCRIPTION OF COMMODITIES)', line, re.IGNORECASE):
             desc_lines = []
             for j in range(i + 1, min(i + 6, len(lines))):
-                desc = lines[j].strip()
-                if not desc or desc.lower().startswith("freight") or "SHIPPER'S LOAD" in desc:
+                candidate = lines[j].strip()
+                if not candidate or candidate.lower().startswith("freight"):
                     break
-                desc_lines.append(desc)
+                desc_lines.append(candidate)
             product_description = " ".join(desc_lines).strip()
             break
 
-    return flight_or_vessel, product_description
+    return {
+        'shipper': shipper,
+        'consignee': consignee,
+        'port_of_loading': port_of_loading,
+        'port_of_discharge': port_of_discharge,
+        'bl_number': bl_number,
+        'container_numbers': container_numbers,
+        'flight_or_vessel': flight_or_vessel,
+        'product_description': product_description,
+        'raw_text': ocr_text
+    }
 
 def parse_air_waybill_fields(ocr_text, page_response):
     lines = [line.strip() for line in ocr_text.split('\n') if line.strip()]
@@ -109,13 +173,7 @@ def parse_air_waybill_fields(ocr_text, page_response):
         for i, line in enumerate(lines):
             for keyword in label_keywords:
                 if keyword.lower() in line.lower():
-                    return " ".join(lines[i+1:i+4])
-        return ""
-
-    def find_port_by_label(label, lines):
-        for i, line in enumerate(lines):
-            if label.lower() in line.lower():
-                return " ".join(lines[i+1:i+4])
+                    return lines[i + 1].strip() if i + 1 < len(lines) else ""
         return ""
 
     def find_first_company_line(start_keywords, stop_keywords):
@@ -131,59 +189,47 @@ def parse_air_waybill_fields(ocr_text, page_response):
                     return line.strip()
         return ""
 
-    bl_number = ""
+    awb_number = ""
     awb_match = re.search(r'\b\d{3}-\d{7,8}\b', ocr_text)
     if awb_match:
-        bl_number = awb_match.group(0)
+        awb_number = awb_match.group(0)
 
     shipper = find_first_company_line(["Shipper's Name and Address"], ["Consignee"])
     consignee = find_first_company_line(["Consignee's Name and Address"], ["Issuing Carrier", "Agent"])
 
-    port_of_loading = (
-        find_nearest_text_below("Airport of Departure", page_response)
-        or find_port_by_label("Airport of Departure", lines)
-    )
-    port_of_discharge = (
-        find_nearest_text_below("Airport of Destination", page_response)
-        or find_port_by_label("Airport of Destination", lines)
-    )
+    port_of_loading = find_nearest_text_below("Airport of Departure", page_response)
+    port_of_discharge = find_nearest_text_below("Airport of Destination", page_response)
 
     port_of_loading = re.split(r'[^A-Z/\- ]+', port_of_loading, flags=re.IGNORECASE)[0].strip()
     port_of_discharge = re.split(r'[^A-Z/\- ]+', port_of_discharge, flags=re.IGNORECASE)[0].strip()
-
-    known_ports = ["NEW YORK CITY", "HEATHROW", "LHR", "JFK", "ATLANTA"]
-    for port in known_ports:
-        if port in ocr_text.upper():
-            if not port_of_loading and "NEW YORK" in port:
-                port_of_loading = port
-            elif not port_of_discharge:
-                port_of_discharge = port
 
     container_numbers = ""
     pkg_match = re.search(r'(\d{1,3})\s*(pieces|pkgs|packages|pcs)', ocr_text, re.IGNORECASE)
     if pkg_match:
         container_numbers = pkg_match.group(1)
-    else:
-        for line in reversed(lines):
-            if re.search(r'(\d+)\s*(pcs|packages|pkgs)', line, re.IGNORECASE):
-                match = re.search(r'(\d+)', line)
-                if match:
-                    container_numbers = match.group(1)
-                    break
 
-    flight_or_vessel, product_description = parse_common_fields(lines)
+    flight_or_vessel = get_after_label(["Requested Flight/Date", "Exporting Carrier"])
+
+    product_description = ""
+    for i, line in enumerate(lines):
+        if "Nature and Quantity" in line or "Description of Goods" in line:
+            for j in range(i + 1, min(i + 5, len(lines))):
+                if lines[j].strip():
+                    product_description = lines[j].strip()
+                    break
+            break
 
     return {
-        "document_type": "AWB",
-        "bl_number": bl_number,
-        "shipper": shipper,
-        "consignee": consignee,
-        "port_of_loading": port_of_loading,
-        "port_of_discharge": port_of_discharge,
-        "container_numbers": container_numbers,
-        "flight_or_vessel": flight_or_vessel,
-        "product_description": product_description,
-        "raw_text": ocr_text
+        'document_type': 'AWB',
+        'bl_number': awb_number,
+        'shipper': shipper,
+        'consignee': consignee,
+        'port_of_loading': port_of_loading,
+        'port_of_discharge': port_of_discharge,
+        'container_numbers': container_numbers,
+        'flight_or_vessel': flight_or_vessel,
+        'product_description': product_description,
+        'raw_text': ocr_text
     }
 
 def extract_fields(file_path):
@@ -198,13 +244,12 @@ def extract_fields(file_path):
 
         if 'AIR WAYBILL' in all_text.upper():
             fields = parse_air_waybill_fields(all_text, page_response)
-            fields["document_type"] = "AWB"
         else:
             fields = parse_bill_of_lading_fields(all_text, page_response)
-            fields["document_type"] = "BOL"
 
         print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
         print("product_description:", fields.get("product_description", ""))
+
         return fields
     except Exception as e:
         logging.error(f"Vision API failed: {e}.")
