@@ -3,7 +3,7 @@ import React from 'react';
 const WhatsAppButton = () => {
   return (
     <a
-      href="https://wa.me/85265381629"
+      href="https://api.whatsapp.com/send?phone=85265381629"
       className="whatsapp-float"
       target="_blank"
       rel="noopener noreferrer"
@@ -27,4 +27,4 @@ const WhatsAppButton = () => {
   );
 };
 
-export default WhatsAppButton; 
+export default WhatsAppButton;
