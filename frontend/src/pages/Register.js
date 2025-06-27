@@ -36,6 +36,15 @@ function Register({ t = x => x }) {
       const data = await res.json();
       if (res.ok) {
         setSnackbar({ open: true, message: data.message, severity: 'success' });
+        await fetch(`${API_BASE_URL}/api/notify_new_user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: formData.username,
+            email: formData.customer_email,
+            role: formData.role,
+          }),
+        });
         setTimeout(() => navigate('/login'), 2000);
       } else {
         setSnackbar({ open: true, message: data.error, severity: 'error' });
@@ -94,4 +103,4 @@ function Register({ t = x => x }) {
   );
 }
 
-export default Register; 
+export default Register;
