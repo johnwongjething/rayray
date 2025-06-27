@@ -1458,6 +1458,45 @@ def get_awaiting_bank_in_bills():
         'page_size': page_size
     })
 
+@app.route('/api/request_username', methods=['POST'])
+def request_username():
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT username, customer_email FROM users")
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    username = None
+    for row in users:
+        db_username, encrypted_email = row
+        try:
+            decrypted_email = decrypt_sensitive_data(encrypted_email)
+            if decrypted_email == email:
+                username = db_username
+                break
+        except Exception:
+            continue
+
+    if not username:
+        return jsonify({'error': 'No user found with this email'}), 404
+
+    subject = "Your Username Recovery Request"
+    body = f"Hi,\n\nYour username is: {username}\n\nIf you did not request this, please ignore this email.\n\nThanks,\nSupport Team"
+
+    try:
+        send_simple_email(email, subject, body)
+        return jsonify({'message': 'Username has been sent to your email.'})
+    except Exception as e:
+        return jsonify({'error': f'Email failed: {str(e)}'}), 500
+
+
 @app.route('/api/notify_new_user', methods=['POST'])
 def notify_new_user():
     data = request.get_json()
