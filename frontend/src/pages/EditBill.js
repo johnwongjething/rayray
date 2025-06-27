@@ -63,6 +63,8 @@ function EditBill({ t = x => x }) {
         port_of_loading: formValues.port_of_loading,
         port_of_discharge: formValues.port_of_discharge,
         container_numbers: formValues.container_numbers,
+        flight_or_vessel: formValues.flight_or_vessel,           // <-- add this
+        product_description: formValues.product_description,     // <-- add this
         service_fee: formValues.service_fee,
         ctn_fee: formValues.ctn_fee,
         payment_link: formValues.payment_link,
@@ -102,6 +104,18 @@ function EditBill({ t = x => x }) {
         <TextField label={t('portOfLoading')} name="port_of_loading" value={formValues.port_of_loading || ''} onChange={handleChange} fullWidth margin="normal" />
         <TextField label={t('portOfDischarge')} name="port_of_discharge" value={formValues.port_of_discharge || ''} onChange={handleChange} fullWidth margin="normal" />
         <TextField label={t('containerNumbers')} name="container_numbers" value={formValues.container_numbers || ''} onChange={handleChange} fullWidth margin="normal" />
+        <TextField label={t('flightOrVessel')} name="flight_or_vessel" value={formValues.flight_or_vessel || ''} onChange={handleChange} fullWidth margin="normal" />
+        <TextField
+          label={t('productDescription')}
+          name="product_description"
+          value={formValues.product_description || ''}
+          onChange={handleChange}
+          fullWidth
+          margin="normal"
+          multiline
+          minRows={2}
+          maxRows={4}
+        />
         <TextField label={t('serviceFee')} name="service_fee" value={formValues.service_fee || ''} onChange={handleChange} fullWidth margin="normal" type="number" />
         <TextField label={t('ctnFee')} name="ctn_fee" value={formValues.ctn_fee || ''} onChange={handleChange} fullWidth margin="normal" type="number" />
         <TextField label={t('paymentLink')} name="payment_link" value={formValues.payment_link || ''} onChange={handleChange} fullWidth margin="normal" />
