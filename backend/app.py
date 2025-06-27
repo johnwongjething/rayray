@@ -452,7 +452,6 @@ def upload():
         if not bill_pdfs and not invoice_pdf and not packing_pdf:
             return jsonify({'error': 'At least one PDF file is required'}), 400
 
-        # Helper to save file with timestamp
         def save_file_with_timestamp(file, label):
             if not file:
                 return None
@@ -464,19 +463,23 @@ def upload():
 
         uploaded_count = 0
         results = []
-        
-        # Save invoice and packing list files once (if they exist)
+
         customer_invoice = save_file_with_timestamp(invoice_pdf, 'invoice') if invoice_pdf else None
         customer_packing_list = save_file_with_timestamp(packing_pdf, 'packing') if packing_pdf else None
-        
-        # If no bill_pdfs, still allow upload of invoice/packing only
+
         if bill_pdfs:
             for bill_pdf in bill_pdfs:
                 pdf_filename = save_file_with_timestamp(bill_pdf, 'bill')
                 fields = {}
+
                 if bill_pdf:
                     pdf_path = os.path.join(UPLOAD_FOLDER, pdf_filename)
                     fields = extract_fields(pdf_path)
+
+                # 🔍 Debug print
+                print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
+                print("product_description:", fields.get("product_description", ""))
+
                 fields_json = json.dumps(fields)
                 hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
 
@@ -485,9 +488,10 @@ def upload():
                 cur.execute("""
                     INSERT INTO bill_of_lading (
                         customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
-                        shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, status,
+                        shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
+                        flight_or_vessel, product_description, status,
                         customer_username, created_at, customer_invoice, customer_packing_list
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     name, str(email), str(phone), pdf_filename, fields_json,
                     str(fields.get('shipper', '')),
@@ -496,6 +500,8 @@ def upload():
                     str(fields.get('port_of_discharge', '')),
                     str(fields.get('bl_number', '')),
                     str(fields.get('container_numbers', '')),
+                    str(fields.get('flight_or_vessel', '')),
+                    str(fields.get('product_description', '')),
                     "Pending",
                     username,
                     hk_now,
@@ -507,7 +513,6 @@ def upload():
                 conn.close()
                 uploaded_count += 1
         else:
-            # Only invoice/packing uploaded, no bill_pdf
             hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
             conn = get_db_conn()
             cur = conn.cursor()
@@ -531,7 +536,6 @@ def upload():
             conn.close()
             uploaded_count += 1
 
-        # Send confirmation email to customer if email config is available
         try:
             if EmailConfig.SMTP_SERVER and EmailConfig.SMTP_USERNAME and EmailConfig.SMTP_PASSWORD:
                 subject = "We have received your Bill of Lading"
@@ -545,6 +549,7 @@ def upload():
     except Exception as e:
         print(f"Error processing upload: {str(e)}")
         return jsonify({'error': f'Error processing upload: {str(e)}'}), 400
+
 
 @app.route('/api/bills', methods=['GET'])
 def get_bills():
