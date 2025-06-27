@@ -678,7 +678,8 @@ def bill_detail(bill_id):
         updatable_fields = [
             'customer_name', 'customer_email', 'customer_phone', 'bl_number',
             'shipper', 'consignee', 'port_of_loading', 'port_of_discharge',
-            'container_numbers', 'service_fee', 'ctn_fee', 'payment_link', 'unique_number'
+            'container_numbers', 'service_fee', 'ctn_fee', 'payment_link', 'unique_number',
+            'flight_or_vessel', 'product_description'  # <-- Add these two fields here
         ]
         update_fields = []
         update_values = []

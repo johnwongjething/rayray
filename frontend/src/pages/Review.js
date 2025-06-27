@@ -130,7 +130,9 @@ function Review({ t = x => x }) {
       port_of_loading: record.port_of_loading || '',
       port_of_discharge: record.port_of_discharge || '',
       bl_number: record.bl_number || '',
-      container_numbers: record.container_numbers || ''
+      container_numbers: record.container_numbers || '',
+      flight_or_vessel: record.flight_or_vessel || '',           // <-- add this
+      product_description: record.product_description || '',      // <-- add this
     });
     setServiceFee(record.service_fee || '');
     setCtnFee(record.ctn_fee || '');
@@ -575,6 +577,21 @@ function Review({ t = x => x }) {
                   onChange={e => handleFieldChange('container_numbers', e.target.value)}
                 />
               </div>
+              <div>
+                <b>{t('flightOrVessel') || 'Flight or Vessel'}:</b>
+                <Input
+                  value={fields.flight_or_vessel}
+                  onChange={e => handleFieldChange('flight_or_vessel', e.target.value)}
+                />
+              </div>
+              <div>
+                <b>{t('productDescription') || 'Product Description'}:</b>
+                <Input.TextArea
+                  value={fields.product_description}
+                  onChange={e => handleFieldChange('product_description', e.target.value)}
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                />
+              </div>
               <Input
                 style={{ width: 200, marginTop: 16 }}
                 addonBefore={t('ctnFee') + '(USD)'}
@@ -667,4 +684,4 @@ function Review({ t = x => x }) {
   );
 }
 
-export default Review; 
+export default Review;
