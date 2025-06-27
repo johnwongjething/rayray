@@ -33,10 +33,10 @@ function Login({ t = x => x }) {
         if (data.customer_phone) localStorage.setItem('customer_phone', data.customer_phone);
         navigate('/dashboard');
       } else {
-        setError(data.error || 'Login failed');
+        setError(data.error || t('loginFailed') || 'Login failed');
       }
     } catch (err) {
-      setError('Login failed');
+      setError(t('loginFailed') || 'Login failed');
     }
   };
 
@@ -70,9 +70,14 @@ function Login({ t = x => x }) {
             {t('login')}
           </Button>
         </form>
-        <Link to="/forgot-password" style={{ textDecoration: 'none', color: '#1976d2', marginTop: '16px', display: 'block' }}>
-          Forgot Password?
-        </Link>
+        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Link to="/forgot-password" style={{ textDecoration: 'none', color: '#1976d2' }}>
+            {t('forgotPassword')}
+          </Link>
+          <Link to="/forgot-username" style={{ textDecoration: 'none', color: '#1976d2' }}>
+            {t('forgotUsername')}
+          </Link>
+        </Box>
         <Snackbar
           open={!!error}
           autoHideDuration={6000}

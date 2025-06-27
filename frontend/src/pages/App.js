@@ -26,6 +26,7 @@ import ResetPassword from './ResetPassword';
 import AccountPage from './AccountPage';
 import NotFound from './NotFound';
 import AccountingReview from './AccountingReview';
+import ForgotUsername from './ForgotUsername';
 import './App.css';
 
 //trigger rebuild
@@ -89,6 +90,7 @@ function App() {
             <Route path="/account-page" element={<AccountPage t={t} />} />
             <Route path="/forgot-password" element={<ForgotPassword t={t} />} />
             <Route path="/reset-password/:token" element={<ResetPassword t={t} />} />
+            <Route path="/forgot-username" element={<ForgotUsername t={t} />} />
             <Route path="/accounting-review" element={<AccountingReview t={t} />} />
             <Route path="/test" element={<TestRoute />} />
             <Route path="*" element={<NotFound t={t} />} />
