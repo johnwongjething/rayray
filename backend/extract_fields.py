@@ -185,3 +185,27 @@ def parse_air_waybill_fields(ocr_text, page_response):
         "product_description": product_description,
         "raw_text": ocr_text
     }
+
+def extract_fields(file_path):
+    print('=== extract_fields function called ===')
+    try:
+        response = extract_text_from_file(file_path)
+        image_response = response
+
+        all_text = ""
+        for page_response in image_response.responses:
+            all_text += page_response.full_text_annotation.text + "\n"
+
+        if 'AIR WAYBILL' in all_text.upper():
+            fields = parse_air_waybill_fields(all_text, page_response)
+            fields["document_type"] = "AWB"
+        else:
+            fields = parse_bill_of_lading_fields(all_text, page_response)
+            fields["document_type"] = "BOL"
+
+        print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
+        print("product_description:", fields.get("product_description", ""))
+        return fields
+    except Exception as e:
+        logging.error(f"Vision API failed: {e}.")
+        return {'error': str(e)}
