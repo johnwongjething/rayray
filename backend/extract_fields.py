@@ -1,4 +1,4 @@
-# Final debugged version of extract_fields.py — fix function missing + clean AWB parsing
+# Final extract_fields.py with accurate AWB ports + product description cleanup
 
 import re
 import os
@@ -166,14 +166,16 @@ def parse_bill_of_lading_fields(ocr_text, page_response):
 
 def parse_air_waybill_fields(ocr_text, page_response):
     lines = [line.strip() for line in ocr_text.split('\n') if line.strip()]
-    print("=== DEBUG: OCR TEXT ===")
-    print(ocr_text)
 
-    def get_after_label(label_keywords):
+    def find_label_value(label_keywords):
         for i, line in enumerate(lines):
             for keyword in label_keywords:
                 if keyword.lower() in line.lower():
-                    return lines[i + 1].strip() if i + 1 < len(lines) else ""
+                    for j in range(i + 1, i + 4):
+                        if j < len(lines):
+                            value = lines[j].strip()
+                            if value:
+                                return re.split(r'[^A-Z\-/ ]+', value)[0].strip()
         return ""
 
     def find_first_company_line(start_keywords, stop_keywords):
@@ -197,25 +199,23 @@ def parse_air_waybill_fields(ocr_text, page_response):
     shipper = find_first_company_line(["Shipper's Name and Address"], ["Consignee"])
     consignee = find_first_company_line(["Consignee's Name and Address"], ["Issuing Carrier", "Agent"])
 
-    port_of_loading = find_nearest_text_below("Airport of Departure", page_response)
-    port_of_discharge = find_nearest_text_below("Airport of Destination", page_response)
-
-    port_of_loading = re.split(r'[^A-Z/\- ]+', port_of_loading, flags=re.IGNORECASE)[0].strip()
-    port_of_discharge = re.split(r'[^A-Z/\- ]+', port_of_discharge, flags=re.IGNORECASE)[0].strip()
+    port_of_loading = find_label_value(["Airport of Departure"])
+    port_of_discharge = find_label_value(["Airport of Destination"])
 
     container_numbers = ""
     pkg_match = re.search(r'(\d{1,3})\s*(pieces|pkgs|packages|pcs)', ocr_text, re.IGNORECASE)
     if pkg_match:
         container_numbers = pkg_match.group(1)
 
-    flight_or_vessel = get_after_label(["Requested Flight/Date", "Exporting Carrier"])
+    flight_or_vessel = find_label_value(["Requested Flight/Date", "Exporting Carrier"])
 
     product_description = ""
     for i, line in enumerate(lines):
         if "Nature and Quantity" in line or "Description of Goods" in line:
             for j in range(i + 1, min(i + 5, len(lines))):
-                if lines[j].strip():
-                    product_description = lines[j].strip()
+                val = lines[j].strip()
+                if val and not val.lower().startswith("freight"):
+                    product_description = val
                     break
             break
 
