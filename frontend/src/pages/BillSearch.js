@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Typography, Box, TextField, Button, Snackbar, Alert } from '@mui/material';
+import {
+  Container, Typography, Box, TextField, Button, Snackbar, Alert,
+  Table, TableHead, TableBody, TableRow, TableCell
+} from '@mui/material';
 import { API_BASE_URL } from '../config';
 import LoadingModal from '../components/LoadingModal';
 
@@ -160,30 +163,38 @@ export default function BillSearch({ t = x => x }) {
       )}
 
       <Box sx={{ overflowX: 'auto', mt: 2 }}>
-        <table border="1" cellPadding="4" style={{ minWidth: 600, width: '100%' }}>
-          <thead>
-            <tr>
-              <th>{t('ctnNumber')}</th>
-              <th>{t('billOfLadingNumber')}</th>
-              <th>{t('customerName')}</th>
-              <th>{t('containerNo')}</th>
-              <th>{t('status')}</th>
-              <th>{t('createdAt')}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table size="small" sx={{
+          minWidth: 600,
+          '& th, & td': {
+            whiteSpace: { xs: 'nowrap', sm: 'normal' },
+            fontSize: { xs: '0.85rem', sm: '1rem' },
+            px: { xs: 1, sm: 2 },
+            py: { xs: 0.5, sm: 1 }
+          }
+        }}>
+          <TableHead>
+            <TableRow>
+              <TableCell>{t('ctnNumber')}</TableCell>
+              <TableCell>{t('billOfLadingNumber')}</TableCell>
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{t('customerName')}</TableCell>
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{t('containerNo')}</TableCell>
+              <TableCell>{t('status')}</TableCell>
+              <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{t('createdAt')}</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {results.map(row => (
-              <tr key={row.id}>
-                <td>{row.unique_number}</td>
-                <td>{row.bl_number}</td>
-                <td>{row.customer_name}</td>
-                <td>{row.container_numbers}</td>
-                <td>{getStatus(row)}</td>
-                <td>{formatDate(row.created_at)}</td>
-              </tr>
+              <TableRow key={row.id}>
+                <TableCell>{row.unique_number}</TableCell>
+                <TableCell>{row.bl_number}</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{row.customer_name}</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{row.container_numbers}</TableCell>
+                <TableCell>{getStatus(row)}</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{formatDate(row.created_at)}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </Box>
 
       <LoadingModal 
