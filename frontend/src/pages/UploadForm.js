@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { TextField, Button, Typography, Snackbar, Alert, CircularProgress } from '@mui/material';
+import { TextField, Button, Typography, Snackbar, Alert, CircularProgress, Container, Box } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 import LoadingModal from '../components/LoadingModal';
-
-const { Title } = Typography;
 
 function UploadForm({ t = x => x }) {
   const [billFiles, setBillFiles] = useState([]);
@@ -117,63 +115,65 @@ function UploadForm({ t = x => x }) {
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: '40px auto', padding: 24, background: '#fff', borderRadius: 8 }}>
-      <Button onClick={() => navigate('/dashboard')} variant="contained" color="primary" style={{ color: '#fff', marginBottom: 16 }}>
-        {t('backToDashboard')}
-      </Button>
-      <Typography variant="h5" gutterBottom>{t('uploadTitle')}</Typography>
-      <form onSubmit={onFinish}>
-        <TextField label={t('name')} name="name" value={formValues.name} onChange={handleInputChange} required fullWidth margin="normal" />
-        <TextField label={t('email')} name="email" value={formValues.email} onChange={handleInputChange} required type="email" fullWidth margin="normal" />
-        <TextField label={t('phone')} name="phone" value={formValues.phone} onChange={handleInputChange} required fullWidth margin="normal" />
-        <div style={{ margin: '16px 0' }}>
-          <Button variant="outlined" component="label" fullWidth>
-            {t('selectPDFBill')}
-            <input type="file" accept="application/pdf" hidden multiple onChange={handleBillFileChange} />
-          </Button>
-          <div style={{ marginTop: 8, color: '#888', fontSize: 13 }}>
-            {t('uploadLimit') !== 'uploadLimit' ? t('uploadLimit') : 'You can upload up to 5 files.'}
-          </div>
-          {billFiles.length > 0 && (
-            <div style={{ marginTop: 8 }}>
-              {billFiles.map((file, idx) => <div key={idx}>{file.name}</div>)}
-            </div>
-          )}
-        </div>
-        <div style={{ margin: '16px 0' }}>
-          <Button variant="outlined" component="label" fullWidth>
-            {t('selectPDFInvoice')}
-            <input type="file" accept="application/pdf" hidden onChange={handleInvoiceFileChange} />
-          </Button>
-          {invoiceFile && <div style={{ marginTop: 8 }}>{invoiceFile.name}</div>}
-        </div>
-        <div style={{ margin: '16px 0' }}>
-          <Button variant="outlined" component="label" fullWidth>
-            {t('selectPDFPacking')}
-            <input type="file" accept="application/pdf" hidden onChange={handlePackingFileChange} />
-          </Button>
-          {packingFile && <div style={{ marginTop: 8 }}>{packingFile.name}</div>}
-        </div>
-        <Button type="submit" variant="contained" color="primary" fullWidth disabled={loading}>
-          {loading ? <CircularProgress size={24} /> : t('submit')}
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 4, p: { xs: 2, sm: 4 }, bgcolor: '#fff', borderRadius: 2, boxShadow: 2 }}>
+        <Button onClick={() => navigate('/dashboard')} variant="contained" color="primary" sx={{ mb: 2 }}>
+          {t('backToDashboard')}
         </Button>
-      </form>
-      <LoadingModal 
-        open={loading} 
-        message={t('uploadingFiles')} 
-      />
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </div>
+        <Typography variant="h5" gutterBottom>{t('uploadTitle')}</Typography>
+        <form onSubmit={onFinish}>
+          <TextField label={t('name')} name="name" value={formValues.name} onChange={handleInputChange} required fullWidth margin="normal" />
+          <TextField label={t('email')} name="email" value={formValues.email} onChange={handleInputChange} required type="email" fullWidth margin="normal" />
+          <TextField label={t('phone')} name="phone" value={formValues.phone} onChange={handleInputChange} required fullWidth margin="normal" />
+          <Box sx={{ my: 2 }}>
+            <Button variant="outlined" component="label" fullWidth>
+              {t('selectPDFBill')}
+              <input type="file" accept="application/pdf" hidden multiple onChange={handleBillFileChange} />
+            </Button>
+            <Typography variant="caption" sx={{ mt: 1, color: 'text.secondary', display: 'block' }}>
+              {t('uploadLimit') !== 'uploadLimit' ? t('uploadLimit') : 'You can upload up to 5 files.'}
+            </Typography>
+            {billFiles.length > 0 && (
+              <Box sx={{ mt: 1 }}>
+                {billFiles.map((file, idx) => <Typography key={idx} variant="body2">{file.name}</Typography>)}
+              </Box>
+            )}
+          </Box>
+          <Box sx={{ my: 2 }}>
+            <Button variant="outlined" component="label" fullWidth>
+              {t('selectPDFInvoice')}
+              <input type="file" accept="application/pdf" hidden onChange={handleInvoiceFileChange} />
+            </Button>
+            {invoiceFile && <Typography variant="body2" sx={{ mt: 1 }}>{invoiceFile.name}</Typography>}
+          </Box>
+          <Box sx={{ my: 2 }}>
+            <Button variant="outlined" component="label" fullWidth>
+              {t('selectPDFPacking')}
+              <input type="file" accept="application/pdf" hidden onChange={handlePackingFileChange} />
+            </Button>
+            {packingFile && <Typography variant="body2" sx={{ mt: 1 }}>{packingFile.name}</Typography>}
+          </Box>
+          <Button type="submit" variant="contained" color="primary" fullWidth disabled={loading}>
+            {loading ? <CircularProgress size={24} /> : t('submit')}
+          </Button>
+        </form>
+        <LoadingModal 
+          open={loading} 
+          message={t('uploadingFiles')} 
+        />
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </Container>
   );
 }
 
-export default UploadForm; 
+export default UploadForm;
