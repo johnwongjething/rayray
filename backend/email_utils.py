@@ -46,11 +46,8 @@ def send_invoice_email(to_email, subject, body, pdf_path):
         return False
 
 # Send unique number email using SMTP (plain text)
-def send_unique_number_email(to_email, customer_name, unique_number):
+def send_unique_number_email(to_email, subject, body):
     try:
-        subject = "Your Custom Declaration Unique Number"
-        body = f"Dear {customer_name},\n\nYour unique number for customs declaration is: {unique_number}\n\nThank you."
-
         msg = EmailMessage()
         msg['Subject'] = subject
         msg['From'] = formataddr(('Logistics Company', EmailConfig.FROM_EMAIL))
