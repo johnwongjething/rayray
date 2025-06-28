@@ -305,6 +305,8 @@ function Review({ t = x => x }) {
   // Send unique number email
   const handleSendUniqueEmail = async () => {
     setUniqueSending(true);
+    // ← Add this:
+  console.log("🔔 Unique email body is:", uniqueEmailBody);
     try {
       const res = await fetch(`${API_BASE_URL}/api/send_unique_number_email`, {
         method: 'POST',
