@@ -292,7 +292,7 @@ function Review({ t = x => x }) {
     setSelected(record);
     setUniqueEmailTo(record.customer_email);
     setUniqueEmailSubject(t('uniqueNumberSubject'));
-    setUniqueEmailBody(t('uniqueNumberBody', { name: record.customer_name, number: record.unique_number }));
+    setUniqueEmailBody(`Dear ${record.customer_name},\n\nYour unique number for customs declaration is: ${record.unique_number}\n\nThank you.`);
     setUniqueEmailModalVisible(true);
   };
 
