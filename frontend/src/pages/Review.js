@@ -604,13 +604,38 @@ function Review({ t = x => x }) {
                 value={serviceFee}
                 onChange={e => setServiceFee(e.target.value)}
               />
-              <Input
-                style={{ width: 200, marginTop: 16 }}
-                addonBefore={t('paymentLink')}
-                value={paymentLink}
-                onChange={e => setPaymentLink(e.target.value)}
-                placeholder="https://..."
-              />
+              <div style={{ marginTop: 16 }}>
+                <b>{t('paymentLink') || 'Payment Link'}:</b>{' '}
+                {fields.payment_link ? (
+                  <a href={fields.payment_link} target="_blank" rel="noopener noreferrer">
+                    {fields.payment_link}
+                  </a>
+                ) : (
+                  <Button type="primary" onClick={async () => {
+                    try {
+                      const res = await fetch(`${API_BASE_URL}/api/generate_payment_link/${selected.id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.payment_link) {
+                        setFields(prev => ({ ...prev, payment_link: data.payment_link }));
+                      } else {
+                        window.message && window.message.error
+                          ? window.message.error('Failed to generate payment link')
+                          : alert('Failed to generate payment link');
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      window.message && window.message.error
+                        ? window.message.error('Error generating link')
+                        : alert('Error generating link');
+                    }
+                  }}>
+                    {t('generatePaymentLink') || 'Generate Payment Link'}
+                  </Button>
+                )}
+              </div>
               <Input
                 value={uniqueNumber}
                 onChange={e => setUniqueNumber(e.target.value)}
