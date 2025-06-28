@@ -3,18 +3,12 @@ import { Container, Typography, Box, TextField, Button, Snackbar, Alert } from '
 import { API_BASE_URL } from '../config';
 
 function Contact({ t = x => x }) {
-  const initialFormData = {
-    name: '',
-    email: '',
-    message: '',
-  };
+  const initialFormData = { name: '', email: '', message: '' };
   const [formData, setFormData] = useState(initialFormData);
   const [submitted, setSubmitted] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,12 +21,13 @@ function Contact({ t = x => x }) {
       const data = await res.json();
       if (res.ok) {
         setSnackbar({ open: true, message: data.message, severity: 'success' });
-        setFormData({ name: '', email: '', message: '' });
+        setFormData(initialFormData);
+        setSubmitted(true);
       } else {
-        setSnackbar({ open: true, message: data.error || 'Failed to send message', severity: 'error' });
+        setSnackbar({ open: true, message: data.error || t('failed'), severity: 'error' });
       }
     } catch (err) {
-      setSnackbar({ open: true, message: 'Failed to send message', severity: 'error' });
+      setSnackbar({ open: true, message: t('failed'), severity: 'error' });
     }
   };
 
@@ -43,16 +38,29 @@ function Contact({ t = x => x }) {
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         minHeight: '100vh',
-        py: 8,
+        py: { xs: 4, sm: 8 },
+        px: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}
     >
-      <Container maxWidth="sm" sx={{ background: 'rgba(255,255,255,0.95)', borderRadius: 2, py: 4, mt: 6 }}>
-        <Typography variant="h3" component="h1" gutterBottom align="center">
+      <Container
+        maxWidth="sm"
+        sx={{
+          background: 'rgba(255,255,255,0.97)',
+          borderRadius: 2,
+          py: { xs: 3, sm: 4 },
+          px: { xs: 2, sm: 4 },
+          boxShadow: 3,
+        }}
+      >
+        <Typography variant="h4" component="h1" gutterBottom align="center">
           {t('contact')}
         </Typography>
         <Typography variant="h6" align="center" gutterBottom>
-          Solex Logistic Company<br/>
-          9/85 Tram Rd Doncaster<br/>
+          Solex Logistic Company<br />
+          9/85 Tram Rd Doncaster<br />
           +852 65381629
         </Typography>
         <Typography align="center" sx={{ mb: 2 }}>
@@ -99,18 +107,18 @@ function Contact({ t = x => x }) {
             </Button>
           </form>
         )}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Container>
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }
 
-export default Contact; 
+export default Contact;

@@ -4,16 +4,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 
 function Login({ t = x => x }) {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-  });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,9 +36,9 @@ function Login({ t = x => x }) {
   };
 
   return (
-    <Container>
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom>
+    <Container maxWidth="sm">
+      <Box sx={{ my: 4, p: { xs: 2, sm: 4 }, boxShadow: 2, borderRadius: 2 }}>
+        <Typography variant="h4" align="center" gutterBottom>
           {t('login')}
         </Typography>
         <form onSubmit={handleSubmit}>
@@ -66,7 +61,7 @@ function Login({ t = x => x }) {
             margin="normal"
             required
           />
-          <Button type="submit" variant="contained" color="primary" sx={{ mt: 2 }}>
+          <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
             {t('login')}
           </Button>
         </form>
