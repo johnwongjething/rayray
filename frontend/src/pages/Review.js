@@ -288,13 +288,19 @@ function Review({ t = x => x }) {
   };
 
   // Show unique number email modal
+
   const showUniqueEmailModal = (record) => {
-    setSelected(record);
-    setUniqueEmailTo(record.customer_email);
-    setUniqueEmailSubject(t('uniqueNumberSubject'));
-    setUniqueEmailBody(`Dear ${record.customer_name},\n\nYour unique number for customs declaration is: ${record.unique_number}\n\nThank you.`);
-    setUniqueEmailModalVisible(true);
-  };
+  setSelected(record);
+  setUniqueEmailTo(record.customer_email);
+  setUniqueEmailSubject("Your Custom Declaration Unique Number");
+  setUniqueEmailBody(
+    `Dear ${record.customer_name},\n\n` +
+    `Your unique number for customs declaration is: ${record.unique_number}\n\n` +
+    `Thank you.`
+  );
+  setUniqueEmailModalVisible(true);
+};
+
 
   // Send unique number email
   const handleSendUniqueEmail = async () => {
