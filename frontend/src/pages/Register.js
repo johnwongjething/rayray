@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
-import { Container, Typography, Box, TextField, Button, MenuItem, Select, InputLabel, FormControl, Snackbar, Alert } from '@mui/material';
+import {
+  Container,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+  Snackbar,
+  Alert
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 
@@ -24,7 +36,7 @@ function Register({ t = x => x }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.confirm_email && formData.customer_email !== formData.confirm_email) {
-      setSnackbar({ open: true, message: 'Email addresses do not match', severity: 'error' });
+      setSnackbar({ open: true, message: t('emailMismatch') || 'Email addresses do not match', severity: 'error' });
       return;
     }
     try {
@@ -50,21 +62,39 @@ function Register({ t = x => x }) {
         setSnackbar({ open: true, message: data.error, severity: 'error' });
       }
     } catch (err) {
-      setSnackbar({ open: true, message: 'Registration failed', severity: 'error' });
+      setSnackbar({ open: true, message: t('registrationFailed') || 'Registration failed', severity: 'error' });
     }
   };
 
   return (
-    <Container>
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom>
+    <Container maxWidth="sm">
+      <Box sx={{ my: 4, p: { xs: 2, sm: 4 }, boxShadow: 2, borderRadius: 2 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
           {t('register')}
         </Typography>
         <form onSubmit={handleSubmit}>
-          <TextField fullWidth label={t('username')} name="username" value={formData.username} onChange={handleChange} margin="normal" required />
-          <TextField fullWidth label={t('password')} name="password" type="password" value={formData.password} onChange={handleChange} margin="normal" required />
+          <TextField
+            fullWidth
+            label={t('username')}
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label={t('password')}
+            name="password"
+            type="password"
+            value={formData.password}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Password must be at least 8 characters, include an uppercase letter, a lowercase letter, a number, and a special character.
+            {t('passwordRequirement') ||
+              'Password must be at least 8 characters, include an uppercase letter, a lowercase letter, a number, and a special character.'}
           </Typography>
           <FormControl fullWidth margin="normal" required>
             <InputLabel id="role-label">{t('role')}</InputLabel>
@@ -80,11 +110,45 @@ function Register({ t = x => x }) {
               <MenuItem value="staff">{t('staff')}</MenuItem>
             </Select>
           </FormControl>
-          <TextField fullWidth label={t('customerName')} name="customer_name" value={formData.customer_name} onChange={handleChange} margin="normal" required />
-          <TextField fullWidth label={t('email')} name="customer_email" type="email" value={formData.customer_email} onChange={handleChange} margin="normal" required />
-          <TextField fullWidth label="Confirm Email Address" name="confirm_email" type="email" value={formData.confirm_email} onChange={handleChange} margin="normal" required />
-          <TextField fullWidth label={t('phoneNumber')} name="customer_phone" value={formData.customer_phone} onChange={handleChange} margin="normal" required />
-          <Button type="submit" variant="contained" color="primary" sx={{ mt: 2 }}>
+          <TextField
+            fullWidth
+            label={t('customerName')}
+            name="customer_name"
+            value={formData.customer_name}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label={t('email')}
+            name="customer_email"
+            type="email"
+            value={formData.customer_email}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label={t('confirmEmail') || 'Confirm Email Address'}
+            name="confirm_email"
+            type="email"
+            value={formData.confirm_email}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label={t('phoneNumber')}
+            name="customer_phone"
+            value={formData.customer_phone}
+            onChange={handleChange}
+            margin="normal"
+            required
+          />
+          <Button type="submit" variant="contained" color="primary" sx={{ mt: 2 }} fullWidth>
             {t('register')}
           </Button>
         </form>
