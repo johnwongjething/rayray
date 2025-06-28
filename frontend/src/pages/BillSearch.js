@@ -18,16 +18,16 @@ export default function BillSearch({ t = x => x }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // For customers, automatically fetch their bills when component mounts
     if (role === 'customer') {
       const token = localStorage.getItem('token');
       if (token) {
-      handleSearch();
+        handleSearch();
       } else {
         setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
         navigate('/login');
       }
     }
+    // eslint-disable-next-line
   }, []);
 
   const handleChange = e => {
@@ -37,22 +37,16 @@ export default function BillSearch({ t = x => x }) {
   const handleSearch = async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
-    
-    // Check if token exists
     if (!token) {
       setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
       setLoading(false);
       navigate('/login');
       return;
     }
-    
     let searchForm = { ...form };
-    
-    // Always include username for customers
     if (role === 'customer') {
       searchForm.username = username;
     }
-    
     try {
       const res = await fetch(`${API_BASE_URL}/api/search_bills`, {
         method: 'POST',
@@ -62,15 +56,12 @@ export default function BillSearch({ t = x => x }) {
         },
         body: JSON.stringify(searchForm)
       });
-      
       if (res.status === 401) {
-        // Token is invalid or expired
         setSnackbar({ open: true, message: 'Session expired. Please log in again.', severity: 'error' });
         localStorage.clear();
         navigate('/login');
         return;
       }
-      
       if (res.ok) {
         const data = await res.json();
         setResults(data);
@@ -79,13 +70,10 @@ export default function BillSearch({ t = x => x }) {
         setSnackbar({ open: true, message: data.error || 'Search failed', severity: 'error' });
       }
     } catch (error) {
-      console.error('Search error:', error);
       setSnackbar({ open: true, message: 'Search failed. Please try again.', severity: 'error' });
     } finally {
       setLoading(false);
     }
-    
-    // Only clear form if it's not an automatic customer fetch
     if (role !== 'customer') {
       setForm({
         unique_number: '',
@@ -120,37 +108,59 @@ export default function BillSearch({ t = x => x }) {
     }
   };
 
-  const columns = [
-    // ... other columns ...
-    {
-      title: t('status'),
-      dataIndex: 'status',
-      key: 'status',
-      render: (_, record) => getStatus(record)
-    },
-    // ... other columns ...
-  ];
-
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 16 }}>
-        <Button onClick={() => navigate('/dashboard')} variant="contained" color="primary" style={{ color: '#fff' }}>
+    <Container maxWidth="md" sx={{ py: { xs: 2, sm: 4 } }}>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+        <Button onClick={() => navigate('/dashboard')} variant="contained" color="primary">
           {t('backToDashboard')}
         </Button>
-      </div>
-      <h2 style={{ textAlign: 'center' }}>{t('yourBills')}</h2>
-      
+      </Box>
+      <Typography variant="h4" align="center" gutterBottom>
+        {t('yourBills')}
+      </Typography>
+
       {role !== 'customer' && (
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-          <TextField label={t('ctnNumber')} name="unique_number" value={form.unique_number} onChange={handleChange} />
-          <TextField label={t('billOfLadingNumber')} name="bl_number" value={form.bl_number} onChange={handleChange} />
-          <TextField label={t('customerName')} name="customer_name" value={form.customer_name} onChange={handleChange} />
-          <Button variant="contained" color="primary" onClick={handleSearch} disabled={loading}>{t('search')}</Button>
-        </div>
+        <Box
+          component="form"
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 2
+          }}
+          onSubmit={e => { e.preventDefault(); handleSearch(); }}
+        >
+          <TextField
+            label={t('ctnNumber')}
+            name="unique_number"
+            value={form.unique_number}
+            onChange={handleChange}
+            size="small"
+          />
+          <TextField
+            label={t('billOfLadingNumber')}
+            name="bl_number"
+            value={form.bl_number}
+            onChange={handleChange}
+            size="small"
+          />
+          <TextField
+            label={t('customerName')}
+            name="customer_name"
+            value={form.customer_name}
+            onChange={handleChange}
+            size="small"
+          />
+          <Button variant="contained" color="primary" type="submit" disabled={loading}>
+            {t('search')}
+          </Button>
+        </Box>
       )}
-      
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <table border="1" cellPadding="4" style={{ marginTop: 16 }}>
+
+      <Box sx={{ overflowX: 'auto', mt: 2 }}>
+        <table border="1" cellPadding="4" style={{ minWidth: 600, width: '100%' }}>
           <thead>
             <tr>
               <th>{t('ctnNumber')}</th>
@@ -174,23 +184,23 @@ export default function BillSearch({ t = x => x }) {
             ))}
           </tbody>
         </table>
-      </div>
-      
-      {/* Loading Modal for Data Loading */}
+      </Box>
+
       <LoadingModal 
         open={loading} 
         message={t('loadingData')} 
       />
-      
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </div>
+    </Container>
   );
 }
