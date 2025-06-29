@@ -1454,60 +1454,67 @@ def get_bills_by_status(status):
 def get_awaiting_bank_in_bills():
     page = int(request.args.get('page', 1))
     page_size = int(request.args.get('page_size', 50))
-    bl_number = request.args.get('bl_number', '').strip()
     offset = (page - 1) * page_size
+    bl_number = request.args.get('bl_number', '').strip()
 
     conn = get_db_conn()
     cur = conn.cursor()
 
-    base_clauses = [
+    # Support both traditional and Allinpay flow
+    base_conditions = [
         "(status = 'Awaiting Bank In')",
         "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
     ]
 
     if bl_number:
-        where_clauses = [f"({w} AND bl_number ILIKE %s)" for w in base_clauses]
+        where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
         where_sql = " OR ".join(where_clauses)
         params = [f"%{bl_number}%"] * len(where_clauses)
         count_params = list(params)
     else:
-        where_sql = " OR ".join(base_clauses)
+        where_sql = " OR ".join(base_conditions)
         params = []
         count_params = []
 
-    # Always add LIMIT/OFFSET params
     params.extend([page_size, offset])
 
-    sql = f"""
-        SELECT * FROM bill_of_lading
+    query = f'''
+        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
+               port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
+               payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
+               receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
+               payment_method, payment_status, reserve_status
+        FROM bill_of_lading
         WHERE {where_sql}
-        ORDER BY created_at DESC
+        ORDER BY id DESC
         LIMIT %s OFFSET %s
-    """
-    cur.execute(sql, tuple(params))
+    '''
+    cur.execute(query, tuple(params))
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
     bills = []
     for row in rows:
         bill_dict = dict(zip(columns, row))
-        if bill_dict.get('customer_email') is not None:
+        # Decrypt email and phone
+        if bill_dict.get('customer_email'):
             bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-        if bill_dict.get('customer_phone') is not None:
+        if bill_dict.get('customer_phone'):
             bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
         bills.append(bill_dict)
 
-    # Get total count for pagination
-    count_sql = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
-    cur.execute(count_sql, tuple(count_params))
-    total = cur.fetchone()[0]
+    # Get total count
+    count_query = f'SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}'
+    cur.execute(count_query, tuple(count_params))
+    total_count = cur.fetchone()[0]
 
     cur.close()
     conn.close()
+
     return jsonify({
-        "bills": bills,
-        "total": total,
-        "page": page,
-        "page_size": page_size
+        'bills': bills,
+        'total': total_count,
+        'page': page,
+        'page_size': page_size
     })
 
 @app.route('/api/request_username', methods=['POST'])
