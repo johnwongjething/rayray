@@ -567,7 +567,7 @@ def get_bills():
     params = []
     if bl_number:
         where_clauses.append('bl_number ILIKE %s')
-        params.append(f'%
+        params.append(f'%{bl_number}%')
     if status:
         where_clauses.append('status = %s')
         params.append(status)
@@ -1480,7 +1480,17 @@ def get_awaiting_bank_in_bills():
     """
     params.extend([page_size, offset])
     cur.execute(sql, tuple(params))
-    bills = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
+    rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    bills = []
+    for row in rows:
+        bill_dict = dict(zip(columns, row))
+        # Decrypt email and phone
+        if bill_dict.get('customer_email') is not None:
+            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+        if bill_dict.get('customer_phone') is not None:
+            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+        bills.append(bill_dict)
 
     # Optionally: get total count for pagination
     count_sql = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
@@ -1534,8 +1544,6 @@ def request_username():
     except Exception as e:
         return jsonify({'error': f'Email failed: {str(e)}'}), 500
 
-
-@app.route('/api/notify_new_user', methods=['POST'])
 def notify_new_user():
     data = request.get_json()
     customer_username = data.get('username')  # from frontend it's still called 'username'
