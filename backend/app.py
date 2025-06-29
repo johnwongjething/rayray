@@ -1475,13 +1475,15 @@ def get_awaiting_bank_in_bills():
         params = []
         count_params = []
 
+    # Always add LIMIT/OFFSET params
+    params.extend([page_size, offset])
+
     sql = f"""
         SELECT * FROM bill_of_lading
         WHERE {where_sql}
         ORDER BY created_at DESC
         LIMIT %s OFFSET %s
     """
-    params.extend([page_size, offset])
     cur.execute(sql, tuple(params))
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
@@ -1489,9 +1491,9 @@ def get_awaiting_bank_in_bills():
     for row in rows:
         bill_dict = dict(zip(columns, row))
         if bill_dict.get('customer_email') is not None:
-            bill_dict['customer_email'] = decrypt_sensitive_data(bbill_dict['customer_email'])
+            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
         if bill_dict.get('customer_phone') is not None:
-            bill_dict['customer_phone'] = decrypt_sensitive_data(bbill_dict['customer_phone'])
+            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
         bills.append(bill_dict)
 
     # Get total count for pagination
@@ -1542,7 +1544,7 @@ def request_username():
 
     try:
         send_simple_email(email, subject, body)
-        return jsonify({'message': 'Username has been sent to your email.'})
+        return jsonify({'message': 'Username sent to your email'}), 200
     except Exception as e:
         return jsonify({'error': f'Email failed: {str(e)}'}), 500
 
