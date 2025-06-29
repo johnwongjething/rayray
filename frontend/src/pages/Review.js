@@ -155,57 +155,40 @@ function Review({ t = x => x }) {
         return;
       }
 
-      // First update the basic bill information
+      // Combine all necessary fields into one update payload
       const updateData = {
         ...fields,
+        service_fee: serviceFee,
+        ctn_fee: ctnFee,
+        payment_link: fields.payment_link || paymentLink,
+        unique_number: uniqueNumber,
+        // If you want to ensure these are always sent, include them:
+        payment_method: selected?.payment_method || '',
+        payment_status: selected?.payment_status || '',
+        reserve_status: selected?.reserve_status || ''
       };
+
       const res = await fetch(`${API_BASE_URL}/api/bills/${selected.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(updateData)
       });
-      
+
       if (res.status === 401) {
         setSnackbar({ open: true, message: 'Session expired. Please log in again.', severity: 'error' });
         localStorage.clear();
         navigate('/login');
         return;
       }
-      
+
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || t('failed'));
       }
 
-      // Then update service fee, CTN fee, payment link and generate invoice
-      const feeUpdateData = {
-        service_fee: serviceFee,
-        ctn_fee: ctnFee,
-        payment_link: paymentLink,
-        unique_number: uniqueNumber
-      };
-
-      const feeRes = await fetch(`${API_BASE_URL}/api/bill/${selected.id}/service_fee`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(feeUpdateData)
-      });
-
-      if (feeRes.status === 401) {
-        setSnackbar({ open: true, message: 'Session expired. Please log in again.', severity: 'error' });
-        localStorage.clear();
-        navigate('/login');
-        return;
-      }
-
-      const feeData = await feeRes.json();
-      if (feeRes.ok) {
-        setSnackbar({ open: true, message: t('success'), severity: 'success' });
-        setModalVisible(false);
-        fetchBills();
-      } else {
-        setSnackbar({ open: true, message: feeData.error || t('failed'), severity: 'error' });
-      }
+      setSnackbar({ open: true, message: t('success'), severity: 'success' });
+      setModalVisible(false);
+      fetchBills();
     } catch (err) {
       console.error('Error updating bill:', err);
       setSnackbar({ open: true, message: err.message || t('failed'), severity: 'error' });
