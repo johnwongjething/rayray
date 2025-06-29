@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button, Modal, Table, Input, Pagination } from 'antd';
 import { Snackbar, Alert } from '@mui/material';
@@ -174,11 +173,14 @@ Thank you.`);
       key: 'reserve_status',
       dataIndex: 'reserve_status',
       render: (_, record) => (
-        record.payment_method === 'allinpay' && record.reserve_status === 'Unsettled' ? (
+        record.payment_method &&
+        record.payment_method.toLowerCase() === 'allinpay' &&
+        record.reserve_status &&
+        record.reserve_status.toLowerCase() === 'unsettled' ? (
           <Button onClick={() => handleSettleReserve(record)} type="primary">
             Settle Reserve
           </Button>
-        ) : record.reserve_status
+        ) : (record.reserve_status || '')
       )
     },
     {
