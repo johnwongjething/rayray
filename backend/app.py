@@ -567,7 +567,7 @@ def get_bills():
     params = []
     if bl_number:
         where_clauses.append('bl_number ILIKE %s')
-        params.append(f'%{bl_number}%')
+        params.append(f'%
     if status:
         where_clauses.append('status = %s')
         params.append(status)
@@ -676,12 +676,13 @@ def bill_detail(bill_id):
             return jsonify({'error': 'Bill not found'}), 404
         columns = [desc[0] for desc in cur.description]
         bill = dict(zip(columns, bill_row))
-        # Allow updating all relevant fields
+        # Allow updating all relevant fields, including new ones
         updatable_fields = [
             'customer_name', 'customer_email', 'customer_phone', 'bl_number',
             'shipper', 'consignee', 'port_of_loading', 'port_of_discharge',
             'container_numbers', 'service_fee', 'ctn_fee', 'payment_link', 'unique_number',
-            'flight_or_vessel', 'product_description'  # <-- Add these two fields here
+            'flight_or_vessel', 'product_description',
+            'payment_method', 'payment_status', 'reserve_status'  # <-- new fields
         ]
         update_fields = []
         update_values = []
@@ -729,6 +730,32 @@ def bill_detail(bill_id):
         cur.close()
         conn.close()
         return jsonify(bill)
+    
+ @app.route('/api/bill/<int:bill_id>/settle_reserve', methods=['POST'])
+@jwt_required()
+def settle_reserve(bill_id):
+    conn = get_db_conn()
+    cur = conn.cursor()
+    try:
+        # Check if bill exists
+        cur.execute("SELECT id FROM bill_of_lading WHERE id = %s", (bill_id,))
+        if not cur.fetchone():
+            return jsonify({"error": "Bill not found"}), 404
+
+        # Update reserve_status field to 'Reserve Settled'
+        cur.execute("""
+            UPDATE bill_of_lading
+            SET reserve_status = 'Reserve Settled'
+            WHERE id = %s
+        """, (bill_id,))
+        conn.commit()
+        return jsonify({"message": "Reserve marked as settled"}), 200
+    except Exception as e:
+        print(f"Error settling reserve: {e}")
+        return jsonify({"error": "Failed to settle reserve"}), 500
+    finally:
+        cur.close()
+        conn.close()   
 
 @app.route('/api/bill/<int:bill_id>/service_fee', methods=['POST'])
 @cross_origin()
@@ -1375,13 +1402,31 @@ def account_bills():
     conn.close()
     return jsonify({'bills': bills, 'summary': summary_data})
 
+@app.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
+def generate_payment_link(bill_id):
+    try:
+        # Simulate link (replace with real Allinpay/Stripe call later)
+        payment_link = f"https://pay.example.com/link/{bill_id}"
+
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (payment_link, bill_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({"payment_link": payment_link})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/bills/status/<status>', methods=['GET'])
 def get_bills_by_status(status):
     conn = get_db_conn()
     cur = conn.cursor()
     
     cur.execute('''
-        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, completed_at, customer_username, customer_invoice, customer_packing_list
+        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, customer_invoice, completed_at, customer_packing_list
         FROM bill_of_lading
         WHERE status = %s
         ORDER BY id DESC
@@ -1405,57 +1450,50 @@ def get_bills_by_status(status):
     return jsonify(bills)
 
 @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
+@jwt_required()
 def get_awaiting_bank_in_bills():
     page = int(request.args.get('page', 1))
     page_size = int(request.args.get('page_size', 50))
+    bl_number = request.args.get('bl_number', '').strip()
     offset = (page - 1) * page_size
-    bl_number = request.args.get('bl_number')
+
     conn = get_db_conn()
     cur = conn.cursor()
 
-    where_clauses = ["status = 'Awaiting Bank In'"]
+    where_clauses = [
+        "(status = 'Awaiting Bank In')",
+        "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
+    ]
     params = []
+
     if bl_number:
-        where_clauses.append('bl_number ILIKE %s')
-        params.append(f'%{bl_number}%')
-    where_sql = ' AND '.join(where_clauses)
-    if where_sql:
-        where_sql = 'WHERE ' + where_sql
+        where_clauses = [f"({w} AND bl_number ILIKE %s)" for w in where_clauses]
+        params = [f"%{bl_number}%"] * len(where_clauses)
 
-    # Get total count for pagination
-    count_query = f'SELECT COUNT(*) FROM bill_of_lading {where_sql}'
-    cur.execute(count_query, tuple(params))
-    total_count = cur.fetchone()[0]
+    where_sql = " OR ".join(where_clauses)
 
-    # Get paginated results
-    query = f'''
-        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list
-        FROM bill_of_lading
-        {where_sql}
-        ORDER BY id DESC
+    sql = f"""
+        SELECT * FROM bill_of_lading
+        WHERE {where_sql}
+        ORDER BY created_at DESC
         LIMIT %s OFFSET %s
-    '''
-    cur.execute(query, tuple(params) + (page_size, offset))
-    rows = cur.fetchall()
-    columns = [desc[0] for desc in cur.description]
-    bills = []
-    for row in rows:
-        bill_dict = dict(zip(columns, row))
-        # Decrypt email and phone
-        if bill_dict.get('customer_email') is not None:
-            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-        if bill_dict.get('customer_phone') is not None:
-            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-        bills.append(bill_dict)
+    """
+    params.extend([page_size, offset])
+    cur.execute(sql, tuple(params))
+    bills = [dict(zip([desc[0] for desc in cur.description], row)) for row in cur.fetchall()]
+
+    # Optionally: get total count for pagination
+    count_sql = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
+    cur.execute(count_sql, tuple(params[:-2]))
+    total = cur.fetchone()[0]
 
     cur.close()
     conn.close()
-
     return jsonify({
-        'bills': bills,
-        'total': total_count,
-        'page': page,
-        'page_size': page_size
+        "bills": bills,
+        "total": total,
+        "page": page,
+        "page_size": page_size
     })
 
 @app.route('/api/request_username', methods=['POST'])
