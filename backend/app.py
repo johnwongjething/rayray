@@ -1460,17 +1460,20 @@ def get_awaiting_bank_in_bills():
     conn = get_db_conn()
     cur = conn.cursor()
 
-    where_clauses = [
+    base_clauses = [
         "(status = 'Awaiting Bank In')",
         "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
     ]
-    params = []
 
     if bl_number:
-        where_clauses = [f"({w} AND bl_number ILIKE %s)" for w in where_clauses]
+        where_clauses = [f"({w} AND bl_number ILIKE %s)" for w in base_clauses]
+        where_sql = " OR ".join(where_clauses)
         params = [f"%{bl_number}%"] * len(where_clauses)
-
-    where_sql = " OR ".join(where_clauses)
+        count_params = list(params)
+    else:
+        where_sql = " OR ".join(base_clauses)
+        params = []
+        count_params = []
 
     sql = f"""
         SELECT * FROM bill_of_lading
@@ -1485,16 +1488,15 @@ def get_awaiting_bank_in_bills():
     bills = []
     for row in rows:
         bill_dict = dict(zip(columns, row))
-        # Decrypt email and phone
         if bill_dict.get('customer_email') is not None:
-            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+            bill_dict['customer_email'] = decrypt_sensitive_data(bbill_dict['customer_email'])
         if bill_dict.get('customer_phone') is not None:
-            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+            bill_dict['customer_phone'] = decrypt_sensitive_data(bbill_dict['customer_phone'])
         bills.append(bill_dict)
 
-    # Optionally: get total count for pagination
+    # Get total count for pagination
     count_sql = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
-    cur.execute(count_sql, tuple(params[:-2]))
+    cur.execute(count_sql, tuple(count_params))
     total = cur.fetchone()[0]
 
     cur.close()
