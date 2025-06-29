@@ -1465,8 +1465,6 @@ def get_awaiting_bank_in_bills():
         "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
     ]
 
-    params = []
-    count_params = []
     if bl_number:
         where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
         where_sql = " OR ".join(where_clauses)
@@ -1489,13 +1487,14 @@ def get_awaiting_bank_in_bills():
         ORDER BY id DESC
         LIMIT %s OFFSET %s
     '''
+    print("QUERY:", query)
+    print("PARAMS:", params)
     cur.execute(query, tuple(params))
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
     bills = []
     for row in rows:
         bill_dict = dict(zip(columns, row))
-        # Decrypt email and phone
         if bill_dict.get('customer_email'):
             bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
         if bill_dict.get('customer_phone'):
@@ -1504,6 +1503,8 @@ def get_awaiting_bank_in_bills():
 
     # Get total count
     count_query = f'SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}'
+    print("COUNT QUERY:", count_query)
+    print("COUNT PARAMS:", count_params)
     cur.execute(count_query, tuple(count_params))
     total_count = cur.fetchone()[0]
 
