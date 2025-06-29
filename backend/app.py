@@ -1475,8 +1475,7 @@ def get_awaiting_bank_in_bills():
         params = []
         count_params = []
 
-    params.extend([page_size, offset])
-
+    # Use page_size and offset directly in the SQL, not as params
     query = f'''
         SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1485,7 +1484,7 @@ def get_awaiting_bank_in_bills():
         FROM bill_of_lading
         WHERE {where_sql}
         ORDER BY id DESC
-        LIMIT %s OFFSET %s
+        LIMIT {page_size} OFFSET {offset}
     '''
     print("QUERY:", query)
     print("PARAMS:", params)
@@ -1537,6 +1536,7 @@ def request_username():
     for row in users:
         db_username, encrypted_email = row
         try:
+            decrypted_email = decrypt_sensitive_data(encrypted_email)
             decrypted_email = decrypt_sensitive_data(encrypted_email)
             if decrypted_email == email:
                 username = db_username
