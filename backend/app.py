@@ -1486,7 +1486,7 @@ def get_awaiting_bank_in_bills():
         WHERE {where_sql}
         ORDER BY id DESC
         LIMIT {page_size} OFFSET {offset}
-    
+    '''
     print("QUERY:", query)
     print("PARAMS:", params)
     if params:
