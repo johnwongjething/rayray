@@ -1477,15 +1477,16 @@ def get_awaiting_bank_in_bills():
 
     # Use page_size and offset directly in the SQL, not as params
     query = f'''
-        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
+             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
                payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
-               receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list
+               receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
+               payment_method, payment_status, reserve_status
         FROM bill_of_lading
         WHERE {where_sql}
         ORDER BY id DESC
         LIMIT {page_size} OFFSET {offset}
-    '''
+    
     print("QUERY:", query)
     print("PARAMS:", params)
     if params:
