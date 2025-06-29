@@ -1460,12 +1460,13 @@ def get_awaiting_bank_in_bills():
     conn = get_db_conn()
     cur = conn.cursor()
 
-    # Support both traditional and Allinpay flow
     base_conditions = [
         "(status = 'Awaiting Bank In')",
         "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
     ]
 
+    params = []
+    count_params = []
     if bl_number:
         where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
         where_sql = " OR ".join(where_clauses)
@@ -1482,8 +1483,7 @@ def get_awaiting_bank_in_bills():
         SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
                payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
-               receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
-               payment_method, payment_status, reserve_status
+               receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list
         FROM bill_of_lading
         WHERE {where_sql}
         ORDER BY id DESC
