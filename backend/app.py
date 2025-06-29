@@ -1488,7 +1488,10 @@ def get_awaiting_bank_in_bills():
     '''
     print("QUERY:", query)
     print("PARAMS:", params)
-    cur.execute(query, tuple(params))
+    if params:
+        cur.execute(query, tuple(params))
+    else:
+        cur.execute(query)
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
     bills = []
@@ -1504,7 +1507,10 @@ def get_awaiting_bank_in_bills():
     count_query = f'SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}'
     print("COUNT QUERY:", count_query)
     print("COUNT PARAMS:", count_params)
-    cur.execute(count_query, tuple(count_params))
+    if count_params:
+        cur.execute(count_query, tuple(count_params))
+    else:
+        cur.execute(count_query)
     total_count = cur.fetchone()[0]
 
     cur.close()
