@@ -731,7 +731,7 @@ def bill_detail(bill_id):
         conn.close()
         return jsonify(bill)
     
- @app.route('/api/bill/<int:bill_id>/settle_reserve', methods=['POST'])
+@app.route('/api/bill/<int:bill_id>/settle_reserve', methods=['POST'])
 @jwt_required()
 def settle_reserve(bill_id):
     conn = get_db_conn()
