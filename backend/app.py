@@ -757,152 +757,152 @@ def settle_reserve(bill_id):
         cur.close()
         conn.close()   
 
-@app.route('/api/bill/<int:bill_id>/service_fee', methods=['POST'])
-@cross_origin()
-@jwt_required()
-def update_service_fee(bill_id):
-    try:
-        # Get user role from JWT
-        user = get_jwt_identity()
-        user = json.loads(user) if isinstance(user, str) else user
-        print(f"User attempting update: {user}")
-        if user.get('role') not in ['staff', 'admin']:
-            return jsonify({'error': 'Unauthorized'}), 403
+# @app.route('/api/bill/<int:bill_id>/service_fee', methods=['POST'])
+# @cross_origin()
+# @jwt_required()
+# def update_service_fee(bill_id):
+#     try:
+    #     # Get user role from JWT
+    #     user = get_jwt_identity()
+    #     user = json.loads(user) if isinstance(user, str) else user
+    #     print(f"User attempting update: {user}")
+    #     if user.get('role') not in ['staff', 'admin']:
+    #         return jsonify({'error': 'Unauthorized'}), 403
 
-        data = request.get_json()
-        print(f"Received update data: {data}")
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+    #     data = request.get_json()
+    #     print(f"Received update data: {data}")
+    #     if not data:
+    #         return jsonify({'error': 'No data provided'}), 400
 
-        service_fee = data.get('service_fee')
-        ctn_fee = data.get('ctn_fee')
-        payment_link = data.get('payment_link')
-        unique_number = data.get('unique_number')
+    #     service_fee = data.get('service_fee')
+    #     ctn_fee = data.get('ctn_fee')
+    #     payment_link = data.get('payment_link')
+    #     unique_number = data.get('unique_number')
         
-        if not all([service_fee, ctn_fee, payment_link, unique_number]):
-            return jsonify({'error': 'Missing required fields'}), 400
+    #     if not all([service_fee, ctn_fee, payment_link, unique_number]):
+    #         return jsonify({'error': 'Missing required fields'}), 400
 
-        try:
-            # Convert fees to float
-            service_fee = float(service_fee)
-            ctn_fee = float(ctn_fee)
-            print(f"Converted fees: service_fee={service_fee}, ctn_fee={ctn_fee}")
-        except ValueError as e:
-            print(f"ValueError converting fees: {str(e)}")
-            return jsonify({'error': 'Invalid fee values'}), 400
+    #     try:
+    #         # Convert fees to float
+    #         service_fee = float(service_fee)
+    #         ctn_fee = float(ctn_fee)
+    #         print(f"Converted fees: service_fee={service_fee}, ctn_fee={ctn_fee}")
+    #     except ValueError as e:
+    #         print(f"ValueError converting fees: {str(e)}")
+    #         return jsonify({'error': 'Invalid fee values'}), 400
 
-        # Get database connection
-        try:
-            conn = get_db_conn()
-            if not conn:
-                print("Database connection failed")
-                return jsonify({'error': 'Database connection failed'}), 500
-            print("Database connection successful")
-        except Exception as e:
-            print(f"Error getting database connection: {str(e)}")
-            return jsonify({'error': f'Database connection error: {str(e)}'}), 500
+    #     # Get database connection
+    #     try:
+    #         conn = get_db_conn()
+    #         if not conn:
+    #             print("Database connection failed")
+    #             return jsonify({'error': 'Database connection failed'}), 500
+    #         print("Database connection successful")
+    #     except Exception as e:
+    #         print(f"Error getting database connection: {str(e)}")
+    #         return jsonify({'error': f'Database connection error: {str(e)}'}), 500
 
-        try:
-            cur = conn.cursor()
-            print("Cursor created successfully")
-        except Exception as e:
-            print(f"Error creating cursor: {str(e)}")
-            return jsonify({'error': f'Cursor creation error: {str(e)}'}), 500
+    #     try:
+    #         cur = conn.cursor()
+    #         print("Cursor created successfully")
+    #     except Exception as e:
+    #         print(f"Error creating cursor: {str(e)}")
+    #         return jsonify({'error': f'Cursor creation error: {str(e)}'}), 500
 
-        try:
-            print(f"Checking if bill {bill_id} exists...")
-            cur.execute("SELECT id FROM bill_of_lading WHERE id=%s", (bill_id,))
-            bill_exists = cur.fetchone()
-            print(f"Bill exists check result: {bill_exists}")
-            if not bill_exists:
-                return jsonify({'error': 'Bill not found'}), 404
+    #     try:
+    #         print(f"Checking if bill {bill_id} exists...")
+    #         cur.execute("SELECT id FROM bill_of_lading WHERE id=%s", (bill_id,))
+    #         bill_exists = cur.fetchone()
+    #         print(f"Bill exists check result: {bill_exists}")
+    #         if not bill_exists:
+    #             return jsonify({'error': 'Bill not found'}), 404
 
-            print("Building update query...")
-            # Update fields
-            update_fields = []
-            update_values = []
-            if service_fee is not None:
-                update_fields.append('service_fee=%s')
-                update_values.append(service_fee)
-            if ctn_fee is not None:
-                update_fields.append('ctn_fee=%s')
-                update_values.append(ctn_fee)
-            if payment_link is not None:
-                update_fields.append('payment_link=%s')
-                update_values.append(payment_link)
-            if unique_number:
-                update_fields.append('unique_number=%s')
-                update_values.append(unique_number)
-            update_values.append(bill_id)
+    #         print("Building update query...")
+    #         # Update fields
+    #         update_fields = []
+    #         update_values = []
+    #         if service_fee is not None:
+    #             update_fields.append('service_fee=%s')
+    #             update_values.append(service_fee)
+    #         if ctn_fee is not None:
+    #             update_fields.append('ctn_fee=%s')
+    #             update_values.append(ctn_fee)
+    #         if payment_link is not None:
+    #             update_fields.append('payment_link=%s')
+    #             update_values.append(payment_link)
+    #         if unique_number:
+    #             update_fields.append('unique_number=%s')
+    #             update_values.append(unique_number)
+    #         update_values.append(bill_id)
 
-            update_query = f"""
-                UPDATE bill_of_lading
-                SET {', '.join(update_fields)}
-                WHERE id=%s
-            """
-            print(f"Update query: {update_query}")
-            print(f"Update values: {update_values}")
+    #         update_query = f"""
+    #             UPDATE bill_of_lading
+    #             SET {', '.join(update_fields)}
+    #             WHERE id=%s
+    #         """
+    #         print(f"Update query: {update_query}")
+    #         print(f"Update values: {update_values}")
             
-            try:
-                cur.execute(update_query, tuple(update_values))
-                print("Update executed successfully")
-                conn.commit()
-                print("Transaction committed")
-            except Exception as e:
-                print(f"Error executing update: {str(e)}")
-                conn.rollback()
-                raise
+    #         try:
+    #             cur.execute(update_query, tuple(update_values))
+    #             print("Update executed successfully")
+    #             conn.commit()
+    #             print("Transaction committed")
+    #         except Exception as e:
+    #             print(f"Error executing update: {str(e)}")
+    #             conn.rollback()
+    #             raise
 
-            print("Fetching updated bill info...")
-            cur.execute("SELECT * FROM bill_of_lading WHERE id=%s", (bill_id,))
-            bill_row = cur.fetchone()
-            print(f"Updated bill row: {bill_row}")
-            if not bill_row:
-                return jsonify({'error': 'Failed to update bill'}), 500
+    #         print("Fetching updated bill info...")
+    #         cur.execute("SELECT * FROM bill_of_lading WHERE id=%s", (bill_id,))
+    #         bill_row = cur.fetchone()
+    #         print(f"Updated bill row: {bill_row}")
+    #         if not bill_row:
+    #             return jsonify({'error': 'Failed to update bill'}), 500
 
-            columns = [desc[0] for desc in cur.description]
-            bill = dict(zip(columns, bill_row))
-            print(f"Updated bill data: {bill}")
+    #         columns = [desc[0] for desc in cur.description]
+    #         bill = dict(zip(columns, bill_row))
+    #         print(f"Updated bill data: {bill}")
 
-            # Decrypt customer data
-            customer = {
-                'name': bill['customer_name'],
-                'email': decrypt_sensitive_data(bill['customer_email']) if bill['customer_email'] is not None else '',
-                'phone': decrypt_sensitive_data(bill['customer_phone']) if bill['customer_phone'] is not None else ''
-            }
-            print(f"Customer info: {customer}")
+    #         # Decrypt customer data
+    #         customer = {
+    #             'name': bill['customer_name'],
+    #             'email': decrypt_sensitive_data(bill['customer_email']) if bill['customer_email'] is not None else '',
+    #             'phone': decrypt_sensitive_data(bill['customer_phone']) if bill['customer_phone'] is not None else ''
+    #         }
+    #         print(f"Customer info: {customer}")
 
-            print("Generating invoice PDF...")
-            try:
-                invoice_filename = generate_invoice_pdf(customer, bill, service_fee, ctn_fee, payment_link)
-                invoice_path = os.path.join('uploads', invoice_filename)
-                print(f"Invoice generated: {invoice_path}")
+    #         print("Generating invoice PDF...")
+    #         try:
+    #             invoice_filename = generate_invoice_pdf(customer, bill, service_fee, ctn_fee, payment_link)
+    #             invoice_path = os.path.join('uploads', invoice_filename)
+    #             print(f"Invoice generated: {invoice_path}")
 
-                # Check if file exists
-                if not os.path.exists(invoice_path):
-                    print(f"Error: Invoice file not found at {invoice_path}")
-                    return jsonify({'error': 'Failed to generate invoice PDF'}), 500
+    #             # Check if file exists
+    #             if not os.path.exists(invoice_path):
+    #                 print(f"Error: Invoice file not found at {invoice_path}")
+    #                 return jsonify({'error': 'Failed to generate invoice PDF'}), 500
 
-                # Only send email if explicitly requested (not for staff/admin updates)
-                # For now, we'll skip automatic email sending
-                print("Invoice generated successfully, email sending disabled for staff/admin updates")
+    #             # Only send email if explicitly requested (not for staff/admin updates)
+    #             # For now, we'll skip automatic email sending
+    #             print("Invoice generated successfully, email sending disabled for staff/admin updates")
                 
-            except Exception as e:
-                print(f"Error during invoice generation: {str(e)}")
-                return jsonify({'error': f'Failed to generate invoice: {str(e)}'}), 500
+    #         except Exception as e:
+    #             print(f"Error during invoice generation: {str(e)}")
+    #             return jsonify({'error': f'Failed to generate invoice: {str(e)}'}), 500
 
-            return jsonify({'message': 'Service fee, CTN fee, and payment link updated successfully'}), 200
+    #         return jsonify({'message': 'Service fee, CTN fee, and payment link updated successfully'}), 200
 
-        except Exception as db_error:
-            conn.rollback()
-            return jsonify({'error': f'Database error: {str(db_error)}'}), 500
-        finally:
-            cur.close()
-            conn.close()
+    #     except Exception as db_error:
+    #         conn.rollback()
+    #         return jsonify({'error': f'Database error: {str(db_error)}'}), 500
+    #     finally:
+    #         cur.close()
+    #         conn.close()
 
-    except Exception as e:
-        print(f"Error in update_service_fee: {str(e)}")
-        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+    # except Exception as e:
+    #     print(f"Error in update_service_fee: {str(e)}")
+    #     return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 @app.route('/api/bill/<int:bill_id>/complete', methods=['POST'])
 def complete_bill(bill_id):
