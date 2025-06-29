@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Button, Modal, Table, Input, Pagination } from 'antd';
 import { Snackbar, Alert } from '@mui/material';
@@ -24,7 +25,6 @@ function AccountingReview({ t = x => x }) {
   const navigate = useNavigate();
   const role = localStorage.getItem('role');
 
-  // Fetch bills with status 'Awaiting Bank In'
   const fetchBills = async (params = {}) => {
     setLoading(true);
     try {
@@ -55,30 +55,23 @@ function AccountingReview({ t = x => x }) {
 
   useEffect(() => { fetchBills({ page: 1 }); }, []);
 
-  // Filtered bills by search
-  // (No longer needed, as search is server-side)
-
-  // B/L number search handler
   const handleBlSearch = () => {
     setPage(1);
     fetchBills({ page: 1, blSearch });
   };
 
-  // Clear B/L search
   const handleClearBlSearch = () => {
     setBlSearch('');
     setPage(1);
     fetchBills({ page: 1 });
   };
 
-  // Pagination handler
   const handlePageChange = (newPage, newPageSize) => {
     setPage(newPage);
     setPageSize(newPageSize);
     fetchBills({ page: newPage, pageSize: newPageSize });
   };
 
-  // Complete handler with confirmation
   const handleComplete = async (record) => {
     setConfirmModal({ visible: true, record });
   };
@@ -103,12 +96,15 @@ function AccountingReview({ t = x => x }) {
     }
   };
 
-  // Send CTN Number logic (copied from Review.js)
   const handleSendUniqueNumber = (record) => {
-    setCurrentRecord(record); // Store the current record
+    setCurrentRecord(record);
     setUniqueEmailTo(record.customer_email);
     setUniqueEmailSubject(t('uniqueNumberSubject'));
-    setUniqueEmailBody(t('uniqueNumberBody', { name: record.customer_name, number: record.unique_number }) || `Dear ${record.customer_name}, your CTN Number is ${record.unique_number}`);
+    setUniqueEmailBody(`Dear ${record.customer_name},
+
+Your unique number for customs declaration is: ${record.unique_number}
+
+Thank you.`);
     setUniqueEmailModalVisible(true);
   };
 
@@ -122,14 +118,14 @@ function AccountingReview({ t = x => x }) {
           to_email: uniqueEmailTo,
           subject: uniqueEmailSubject,
           body: uniqueEmailBody,
-          bill_id: currentRecord?.id // Use the stored current record
+          bill_id: currentRecord?.id
         })
       });
       const data = await res.json();
       if (res.ok) {
         setSnackbar({ open: true, message: t('uniqueEmailSent'), severity: 'success' });
         setUniqueEmailModalVisible(false);
-        setCurrentRecord(null); // Clear the stored record
+        setCurrentRecord(null);
       } else {
         setSnackbar({ open: true, message: data.error || t('emailFailed'), severity: 'error' });
       }
@@ -140,7 +136,24 @@ function AccountingReview({ t = x => x }) {
     }
   };
 
-  // CTN Number column logic (reuse from Review.js)
+  const handleSettleReserve = async (record) => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/api/bill/${record.id}/settle_reserve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to settle reserve');
+      setSnackbar({ open: true, message: 'Reserve marked as settled', severity: 'success' });
+      fetchBills();
+    } catch (err) {
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const renderCTNNumber = (text, record) => (
     <>
       {text}
@@ -157,6 +170,18 @@ function AccountingReview({ t = x => x }) {
     { title: t('receiptUploadedAt'), dataIndex: 'receipt_uploaded_at', key: 'receipt_uploaded_at', render: (text) => text ? new Date(text).toLocaleString() : '' },
     { title: t('ctnNumber'), dataIndex: 'unique_number', key: 'unique_number', render: renderCTNNumber },
     {
+      title: t('reserveStatus'),
+      key: 'reserve_status',
+      dataIndex: 'reserve_status',
+      render: (_, record) => (
+        record.payment_method === 'allinpay' && record.reserve_status === 'Unsettled' ? (
+          <Button onClick={() => handleSettleReserve(record)} type="primary">
+            Settle Reserve
+          </Button>
+        ) : record.reserve_status
+      )
+    },
+    {
       title: t('complete'),
       key: 'complete',
       render: (_, record) => (
@@ -171,9 +196,7 @@ function AccountingReview({ t = x => x }) {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px' }}>
-      {/* Top row with back button, header, and search */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        {/* Back button on left */}
         <Button
           variant="contained"
           color="primary"
@@ -182,11 +205,7 @@ function AccountingReview({ t = x => x }) {
         >
           {t('backToDashboard')}
         </Button>
-        
-        {/* Header in center */}
         <h2 style={{ margin: 0, textAlign: 'center', flex: 1 }}>{t('accountSettlementPage')}</h2>
-        
-        {/* Search field on right */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Input
             placeholder={t('searchBlNumber')}
@@ -199,7 +218,7 @@ function AccountingReview({ t = x => x }) {
           <Button onClick={handleClearBlSearch}>{t('clear')}</Button>
         </div>
       </div>
-      
+
       <Table dataSource={bills} columns={columns} rowKey="id" loading={loading} pagination={false} />
       <Pagination
         current={page}
@@ -210,23 +229,11 @@ function AccountingReview({ t = x => x }) {
         onShowSizeChange={handlePageChange}
         style={{ marginTop: 16, textAlign: 'right' }}
       />
-      
-      {/* Loading Modals */}
-      <LoadingModal 
-        open={loading} 
-        message={t('loadingData')} 
-      />
-      
-      <LoadingModal 
-        open={saving} 
-        message={t('savingData')} 
-      />
-      
-      <LoadingModal 
-        open={uniqueSending} 
-        message={t('sendingEmail')} 
-      />
-      
+
+      <LoadingModal open={loading} message={t('loadingData')} />
+      <LoadingModal open={saving} message={t('savingData')} />
+      <LoadingModal open={uniqueSending} message={t('sendingEmail')} />
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
@@ -237,6 +244,7 @@ function AccountingReview({ t = x => x }) {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
       <Modal
         open={confirmModal.visible}
         onCancel={() => setConfirmModal({ visible: false, record: null })}
@@ -247,11 +255,12 @@ function AccountingReview({ t = x => x }) {
       >
         <div>{t('confirmCompleteBill')}</div>
       </Modal>
+
       <Modal
         open={uniqueEmailModalVisible}
         onCancel={() => {
           setUniqueEmailModalVisible(false);
-          setCurrentRecord(null); // Clear the stored record when canceling
+          setCurrentRecord(null);
         }}
         onOk={handleSendUniqueEmail}
         okText={t('send')}
@@ -277,4 +286,4 @@ function AccountingReview({ t = x => x }) {
   );
 }
 
-export default AccountingReview; 
+export default AccountingReview;
