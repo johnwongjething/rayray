@@ -1281,126 +1281,92 @@ def get_hk_date_range(search_date_str):
 
 @app.route('/api/account_bills', methods=['GET'])
 def account_bills():
-    receipt_uploaded_at = request.args.get('receipt_uploaded_at')
     completed_at = request.args.get('completed_at')
-    bl_number = request.args.get('bl_number')  # Add B/L number search parameter
-    
+    bl_number = request.args.get('bl_number')
+
     conn = get_db_conn()
     cur = conn.cursor()
-    
+
+    base_query = '''
+        SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
+               shipper, consignee, port_of_loading, port_of_discharge, bl_number,
+               container_numbers, service_fee, ctn_fee, payment_link, receipt_filename,
+               status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
+               completed_at, customer_username, customer_invoice, customer_packing_list,
+               payment_method, payment_status, reserve_status
+        FROM bill_of_lading
+        WHERE status = 'Paid and CTN Valid'
+    '''
+
+    where_clauses = []
+    params = []
+
     if completed_at:
-        # Use timezone-aware date range for completed_at
         start_date, end_date = get_hk_date_range(completed_at)
-        cur.execute('''
-            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, completed_at, customer_username, customer_invoice, customer_packing_list
-            FROM bill_of_lading
-            WHERE completed_at >= %s AND completed_at < %s AND status = 'Paid and CTN Valid'
-            ORDER BY id DESC
-        ''', (start_date, end_date))
-    elif receipt_uploaded_at:
-        # Use timezone-aware date range for receipt_uploaded_at
-        start_date, end_date = get_hk_date_range(receipt_uploaded_at)
-        cur.execute('''
-            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, completed_at, customer_username, customer_invoice, customer_packing_list
-            FROM bill_of_lading
-            WHERE receipt_uploaded_at >= %s AND receipt_uploaded_at < %s AND status = 'Paid and CTN Valid'
-            ORDER BY id DESC
-        ''', (start_date, end_date))
-    elif bl_number:
-        cur.execute('''
-            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, completed_at, customer_username, customer_invoice, customer_packing_list
-            FROM bill_of_lading
-            WHERE bl_number ILIKE %s AND status = 'Paid and CTN Valid'
-            ORDER BY id DESC
-        ''', (f'%{bl_number}%',))
-    else:
-        # When no parameters are provided, only show bills with 'Paid and CTN Valid' status
-        cur.execute('''
-            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, completed_at, customer_username, customer_invoice, customer_packing_list
-            FROM bill_of_lading
-            WHERE status = 'Paid and CTN Valid'
-            ORDER BY id DESC
-        ''')
-    
+        where_clauses.append("completed_at >= %s AND completed_at < %s")
+        params.extend([start_date, end_date])
+    if bl_number:
+        where_clauses.append("bl_number ILIKE %s")
+        params.append(f'%{bl_number}%')
+
+    if where_clauses:
+        base_query += " AND " + " AND ".join(where_clauses)
+
+    base_query += " ORDER BY id DESC"
+    cur.execute(base_query, tuple(params))
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
-    
-    bills = []
-    for row in rows:
-        bill_dict = dict(zip(columns, row))
-        # Decrypt email and phone
-        if bill_dict.get('customer_email') is not None:
-            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-        if bill_dict.get('customer_phone') is not None:
-            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-        bills.append(bill_dict)
 
-    # Summary - update to only include 'Paid and CTN Valid' status
-    if completed_at:
-        # Use timezone-aware date range for summary
-        start_date, end_date = get_hk_date_range(completed_at)
-        cur.execute('''
-            SELECT COUNT(*) as total_entries,
-                   COALESCE(SUM(ctn_fee), 0) as total_ctn_fee,
-                   COALESCE(SUM(service_fee), 0) as total_service_fee
-            FROM bill_of_lading
-            WHERE completed_at >= %s AND completed_at < %s AND status = 'Paid and CTN Valid'
-        ''', (start_date, end_date))
-        summary = cur.fetchone()
-        summary_data = {
-            'totalEntries': summary[0],
-            'totalCtnFee': float(summary[1]),
-            'totalServiceFee': float(summary[2])
-        }
-    elif receipt_uploaded_at:
-        # Use timezone-aware date range for summary
-        start_date, end_date = get_hk_date_range(receipt_uploaded_at)
-        cur.execute('''
-            SELECT COUNT(*) as total_entries,
-                   COALESCE(SUM(ctn_fee), 0) as total_ctn_fee,
-                   COALESCE(SUM(service_fee), 0) as total_service_fee
-            FROM bill_of_lading
-            WHERE receipt_uploaded_at >= %s AND receipt_uploaded_at < %s AND status = 'Paid and CTN Valid'
-        ''', (start_date, end_date))
-        summary = cur.fetchone()
-        summary_data = {
-            'totalEntries': summary[0],
-            'totalCtnFee': float(summary[1]),
-            'totalServiceFee': float(summary[2])
-        }
-    elif bl_number:
-        cur.execute('''
-            SELECT COUNT(*) as total_entries,
-                   COALESCE(SUM(ctn_fee), 0) as total_ctn_fee,
-                   COALESCE(SUM(service_fee), 0) as total_service_fee
-            FROM bill_of_lading
-            WHERE bl_number ILIKE %s AND status = 'Paid and CTN Valid'
-        ''', (f'%{bl_number}%',))
-        summary = cur.fetchone()
-        summary_data = {
-            'totalEntries': summary[0],
-            'totalCtnFee': float(summary[1]),
-            'totalServiceFee': float(summary[2])
-        }
-    else:
-        # Summary for all 'Paid and CTN Valid' bills
-        cur.execute('''
-            SELECT COUNT(*) as total_entries,
-                   COALESCE(SUM(ctn_fee), 0) as total_ctn_fee,
-                   COALESCE(SUM(service_fee), 0) as total_service_fee
-            FROM bill_of_lading
-            WHERE status = 'Paid and CTN Valid'
-        ''')
-        summary = cur.fetchone()
-        summary_data = {
-            'totalEntries': summary[0],
-            'totalCtnFee': float(summary[1]),
-            'totalServiceFee': float(summary[2])
-        }
-    
+    bills = []
+    total_bank_ctn = 0
+    total_bank_service = 0
+    total_allinpay_85_ctn = 0
+    total_allinpay_85_service = 0
+    total_reserve_ctn = 0
+    total_reserve_service = 0
+
+    for row in rows:
+        bill = dict(zip(columns, row))
+
+        # Decrypt sensitive fields
+        if bill.get('customer_email'):
+            bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
+        if bill.get('customer_phone'):
+            bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+
+        bills.append(bill)
+
+        # Convert fee strings to float
+        ctn_fee = float(bill.get('ctn_fee') or 0)
+        service_fee = float(bill.get('service_fee') or 0)
+
+        # Logic based on payment method
+        if bill.get('payment_method') == 'Allinpay':
+            if bill.get('reserve_status') == 'Settled':
+                # Reserve (15%)
+                total_reserve_ctn += round(ctn_fee * 0.15, 2)
+                total_reserve_service += round(service_fee * 0.15, 2)
+            else:
+                # 85% part
+                total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
+                total_allinpay_85_service += round(service_fee * 0.85, 2)
+        else:
+            # Assume Bank Transfer
+            total_bank_ctn += ctn_fee
+            total_bank_service += service_fee
+
+    summary = {
+        'totalEntries': len(bills),
+        'totalCtnFee': round(sum(float(b.get('ctn_fee') or 0) for b in bills), 2),
+        'totalServiceFee': round(sum(float(b.get('service_fee') or 0) for b in bills), 2),
+        'bankTotal': round(total_bank_ctn + total_bank_service, 2),
+        'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
+        'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
+    }
+
     cur.close()
     conn.close()
-    return jsonify({'bills': bills, 'summary': summary_data})
+    return jsonify({'bills': bills, 'summary': summary})
 
 @app.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
 def generate_payment_link(bill_id):
@@ -1451,83 +1417,93 @@ def get_bills_by_status(status):
 @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
 @jwt_required()
 def get_awaiting_bank_in_bills():
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 50))
+    offset = (page - 1) * page_size
+    bl_number = request.args.get('bl_number', '').strip()
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    base_conditions = [
+        "(status = 'Awaiting Bank In')",
+        "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
+    ]
+
+    where_clauses = []
+    params = []
+
+    if bl_number:
+        # Add B/L search on top of each base condition
+        where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
+        params = [f"%{bl_number}%"] * len(base_conditions)
+    else:
+        where_clauses = base_conditions  # Just use base conditions with OR
+
+    # Join conditions with OR
+    combined_where_sql = " OR ".join(where_clauses)
+
+    # Add additional filter for Allinpay: exclude reserve settled
+    combined_where_sql = f"({combined_where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+
+    # Data query
+    data_query = f"""
+        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
+               port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
+               payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
+               receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
+               payment_method, payment_status, reserve_status
+        FROM bill_of_lading
+        WHERE {combined_where_sql}
+        ORDER BY id DESC
+        LIMIT %s OFFSET %s
+    """
+    data_params = list(params) + [page_size, offset]
+
+    print("DATA QUERY:", data_query)
+    print("DATA PARAMS:", data_params)
+
     try:
-        page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', 50))
-        offset = (page - 1) * page_size
-        bl_number = request.args.get('bl_number', '').strip()
-
-        conn = get_db_conn()
-        cur = conn.cursor()
-
-        # Define base conditions for query
-        base_conditions = [
-            "(status = 'Awaiting Bank In')",
-            "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
-        ]
-
-        # Additional clause to exclude reserve settled
-        reserve_clause = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
-
-        if bl_number:
-            where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-            where_sql = f"({' OR '.join(where_clauses)}) AND {reserve_clause}"
-            params = [f"%{bl_number}%"] * len(where_clauses)
-        else:
-            where_sql = f"({' OR '.join(base_conditions)}) AND {reserve_clause}"
-            params = []
-
-        # Data query
-        data_query = f"""
-            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
-                port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
-                payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
-                receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
-                payment_method, payment_status, reserve_status
-            FROM bill_of_lading
-            WHERE {where_sql}
-            ORDER BY id DESC
-            LIMIT %s OFFSET %s
-        """
-        print("DATA QUERY:", data_query)
-        print("DATA PARAMS:", params + [page_size, offset])
-
-        cur.execute(data_query, tuple(params + [page_size, offset]))
+        cur.execute(data_query, tuple(data_params))
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
-
-        bills = []
-        for row in rows:
-            bill_dict = dict(zip(columns, row))
-            if bill_dict.get('customer_email'):
-                bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-            if bill_dict.get('customer_phone'):
-                bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-            bills.append(bill_dict)
-
-        # Count query
-        count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
-        print("COUNT QUERY:", count_query)
-        print("COUNT PARAMS:", params)
-
-        cur.execute(count_query, tuple(params))
-        row = cur.fetchone()
-        total = row[0] if row and len(row) > 0 else 0
-
+    except Exception as err:
+        print("ERROR executing data query:", str(err))
         cur.close()
         conn.close()
+        return jsonify({'error': 'Failed to fetch bills'}), 500
 
-        return jsonify({
-            'bills': bills,
-            'total': total,
-            'page': page,
-            'page_size': page_size
-        })
+    bills = []
+    for row in rows:
+        bill_dict = dict(zip(columns, row))
+        if bill_dict.get('customer_email'):
+            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+        if bill_dict.get('customer_phone'):
+            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+        bills.append(bill_dict)
 
-    except Exception as e:
-        print("ERROR in awaiting_bank_in:", str(e))
-        return jsonify({'error': 'Internal server error'}), 500
+    # Count query
+    count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {combined_where_sql}"
+    print("COUNT QUERY:", count_query)
+    print("COUNT PARAMS:", params)
 
+    try:
+        cur.execute(count_query, tuple(params))
+        row = cur.fetchone()
+        total_count = row[0] if row and len(row) > 0 else 0
+    except Exception as count_err:
+        print("ERROR executing count query:", str(count_err))
+        total_count = 0
+
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        'bills': bills,
+        'total': total_count,
+        'page': page,
+        'page_size': page_size
+    })
 
 
 @app.route('/api/request_username', methods=['POST'])
