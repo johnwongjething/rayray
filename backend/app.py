@@ -1497,22 +1497,22 @@ def account_bills():
 #     conn.close()
 #     return jsonify({'bills': bills, 'summary': summary})
 
-# @app.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
-# def generate_payment_link(bill_id):
-#     try:
-#         # Simulate link (replace with real Allinpay/Stripe call later)
-#         payment_link = f"https://pay.example.com/link/{bill_id}"
+@app.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
+def generate_payment_link(bill_id):
+    try:
+        # Simulate link (replace with real Allinpay/Stripe call later)
+        payment_link = f"https://pay.example.com/link/{bill_id}"
 
-#         conn = get_db_conn()
-#         cur = conn.cursor()
-#         cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (payment_link, bill_id))
-#         conn.commit()
-#         cur.close()
-#         conn.close()
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (payment_link, bill_id))
+        conn.commit()
+        cur.close()
+        conn.close()
 
-#         return jsonify({"payment_link": payment_link})
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
+        return jsonify({"payment_link": payment_link})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/bills/status/<status>', methods=['GET'])
