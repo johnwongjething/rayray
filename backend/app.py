@@ -1460,24 +1460,23 @@ def get_awaiting_bank_in_bills():
     conn = get_db_conn()
     cur = conn.cursor()
 
-    # 1. Base conditions for Awaiting Bank In + Allinpay Paid 85%
     base_conditions = [
         "(status = 'Awaiting Bank In')",
         "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
     ]
 
+    params = []
+    count_params = []
+    
     if bl_number:
         where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
         where_sql = " OR ".join(where_clauses)
         params = [f"%{bl_number}%"] * len(where_clauses)
+        count_params = list(params)
     else:
         where_sql = " OR ".join(base_conditions)
-        params = []
+        count_params = []
 
-    # Add pagination to params
-    params.extend([page_size, offset])
-
-    # 2. Main query with pagination
     query = f'''
         SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1489,37 +1488,35 @@ def get_awaiting_bank_in_bills():
         ORDER BY id DESC
         LIMIT %s OFFSET %s
     '''
+    final_params = params + [page_size, offset]
 
-    cur.execute(query, tuple(params))
-    rows = cur.fetchall()
-    columns = [desc[0] for desc in cur.description]
-    bills = []
-    for row in rows:
-        bill_dict = dict(zip(columns, row))
+    try:
+        cur.execute(query, tuple(final_params))
+        rows = cur.fetchall()
+        columns = [desc[0] for desc in cur.description]
+        bills = []
+        for row in rows:
+            bill_dict = dict(zip(columns, row))
+            if (bill_dict.get('reserve_status') or '').strip().lower() == 'reserve settled':
+                continue
+            if bill_dict.get('customer_email'):
+                bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+            if bill_dict.get('customer_phone'):
+                bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+            bills.append(bill_dict)
 
-        # Exclude entries with reserve_status = 'Reserve Settled'
-        if bill_dict.get('reserve_status', '').strip().lower() == 'reserve settled':
-            continue
+        # Count query (same logic as above)
+        count_query = f"SELECT reserve_status FROM bill_of_lading WHERE {where_sql}"
+        cur.execute(count_query, tuple(count_params))
+        count_rows = cur.fetchall()
+        total_count = sum(1 for row in count_rows if (row[0] or '').strip().lower() != 'reserve settled')
 
-        # Decrypt sensitive fields
-        if bill_dict.get('customer_email'):
-            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-        if bill_dict.get('customer_phone'):
-            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-
-        bills.append(bill_dict)
-
-    # 3. Count query (NO LIMIT, still apply same filters)
-    count_params = params[:-2]  # remove LIMIT/OFFSET
-    count_query = f'''
-        SELECT id, reserve_status FROM bill_of_lading WHERE {where_sql}
-    '''
-    cur.execute(count_query, tuple(count_params))
-    count_rows = cur.fetchall()
-    total_count = sum(1 for row in count_rows if (row[1] or '').strip().lower() != 'reserve settled')
-
-    cur.close()
-    conn.close()
+    except Exception as e:
+        print("ERROR in awaiting_bank_in:", str(e))
+        return jsonify({'error': 'Server error'}), 500
+    finally:
+        cur.close()
+        conn.close()
 
     return jsonify({
         'bills': bills,
