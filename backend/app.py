@@ -1475,21 +1475,25 @@ def get_awaiting_bank_in_bills():
 
         columns = [desc[0] for desc in cur.description]
         print(f"✅ Row Count: {len(rows)}; Column Count: {len(columns)}")
+        
+bills = []
+for idx, row in enumerate(rows):
+    if len(row) != len(columns):
+        print(f"⚠️ Row {idx} length mismatch: expected {len(columns)}, got {len(row)}")
+        print("❌ Row content:", row)
+        continue  # Skip malformed row
 
-        bills = []
-        for idx, row in enumerate(rows):
-            try:
-                bill_dict = dict(zip(columns, row))
-                if bill_dict.get('customer_email'):
-                    bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-                if bill_dict.get('customer_phone'):
-                    bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-                bills.append(bill_dict)
-            except Exception as e:
-                print(f"❌ Error on row {idx}: {str(e)}")
-                print(f"Row Data: {row}")
-                print(f"Columns: {columns}")
-                continue
+    try:
+        bill_dict = dict(zip(columns, row))
+        if bill_dict.get('customer_email'):
+            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+        if bill_dict.get('customer_phone'):
+            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+        bills.append(bill_dict)
+    except Exception as e:
+        print(f"❌ Error on row {idx}: {e}")
+        continue
+
 
         # Total count for pagination (same WHERE but no limit/offset)
         count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
