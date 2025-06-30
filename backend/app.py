@@ -1468,7 +1468,6 @@ def get_awaiting_bank_in_bills():
         params = []
 
         if bl_number:
-            # Wrap each base condition with bl_number check
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
             params = [f"%{bl_number}%"] * len(where_clauses)
         else:
@@ -1490,7 +1489,6 @@ def get_awaiting_bank_in_bills():
             ORDER BY id DESC
             LIMIT %s OFFSET %s
         """
-
         data_params = params + [page_size, offset]
         print("DATA QUERY:", data_query)
         print("DATA PARAMS:", data_params)
@@ -1509,10 +1507,12 @@ def get_awaiting_bank_in_bills():
 
         # --- COUNT QUERY ---
         count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
-        count_params = tuple(params)
         print("COUNT QUERY:", count_query)
-        print("COUNT PARAMS:", count_params)
-        cur.execute(count_query, count_params)
+        print("COUNT PARAMS:", params)
+        if params:
+            cur.execute(count_query, tuple(params))
+        else:
+            cur.execute(count_query)
         total = cur.fetchone()[0]
 
         cur.close()
@@ -1528,6 +1528,7 @@ def get_awaiting_bank_in_bills():
     except Exception as e:
         print("ERROR in awaiting_bank_in:", str(e))
         return jsonify({"error": "Internal Server Error"}), 500
+
 
 @app.route('/api/request_username', methods=['POST'])
 def request_username():
