@@ -1432,26 +1432,23 @@ def get_awaiting_bank_in_bills():
         conn = get_db_conn()
         cur = conn.cursor()
 
-        # Base filters
         base_conditions = [
             "(status = 'Awaiting Bank In')",
             "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
         ]
 
-        # Additional reserve status condition
-        reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
-
         if bl_number:
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-            where_sql = f"({' OR '.join(where_clauses)}) AND {reserve_filter}"
+            where_sql = " OR ".join(where_clauses)
             params = [f"%{bl_number}%"] * len(where_clauses)
         else:
-            where_sql = f"({' OR '.join(base_conditions)}) AND {reserve_filter}"
+            where_sql = " OR ".join(base_conditions)
             params = []
 
-        # Add pagination params
-        data_params = list(params) + [page_size, offset]
+        # Exclude settled reserve entries
+        where_sql = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
+        # Final SQL
         data_query = f"""
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1464,25 +1461,21 @@ def get_awaiting_bank_in_bills():
             LIMIT %s OFFSET %s
         """
 
+        data_params = list(params) + [page_size, offset]
+
         print("✅ DATA QUERY:\n", data_query)
         print("✅ DATA PARAMS:", data_params)
 
         cur.execute(data_query, tuple(data_params))
         rows = cur.fetchall()
-
-        if not cur.description:
-            raise Exception("cur.description is None — no columns returned from DB.")
-
         columns = [desc[0] for desc in cur.description]
-        print(f"✅ Row Count: {len(rows)}; Column Count: {len(columns)}")
-        
+
         bills = []
         for idx, row in enumerate(rows):
             if len(row) != len(columns):
                 print(f"⚠️ Row {idx} length mismatch: expected {len(columns)}, got {len(row)}")
                 print("❌ Row content:", row)
                 continue  # Skip malformed row
-
             try:
                 bill_dict = dict(zip(columns, row))
                 if bill_dict.get('customer_email'):
@@ -1491,31 +1484,31 @@ def get_awaiting_bank_in_bills():
                     bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
                 bills.append(bill_dict)
             except Exception as e:
-                print(f"❌ Error on row {idx}: {e}")
+                print(f"❌ Error processing row {idx}: {e}")
                 continue
 
-        # Total count for pagination (same WHERE but no limit/offset)
+        # Count query (for pagination)
         count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
-        print("✅ COUNT QUERY:", count_query)
+        print("✅ COUNT QUERY:\n", count_query)
         print("✅ COUNT PARAMS:", params)
 
         cur.execute(count_query, tuple(params))
-        count_result = cur.fetchone()
-        total_count = count_result[0] if count_result and len(count_result) > 0 else 0
+        total = cur.fetchone()[0] if cur.rowcount else 0
 
         cur.close()
         conn.close()
 
         return jsonify({
             'bills': bills,
-            'total': total_count,
+            'total': total,
             'page': page,
             'page_size': page_size
         })
 
     except Exception as e:
         print("❌ ERROR in awaiting_bank_in:", str(e))
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 
 
