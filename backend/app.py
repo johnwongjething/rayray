@@ -1433,19 +1433,22 @@ def get_awaiting_bank_in_bills():
         conn = get_db_conn()
         cur = conn.cursor()
 
+        # Build WHERE clause and params
         base_conditions = [
             "(status = 'Awaiting Bank In')",
             "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
         ]
+        reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
+        params = []
         if bl_number:
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-            where_sql = " OR ".join(where_clauses)
+            where_sql = f"({' OR '.join(where_clauses)}) AND {reserve_filter}"
             params = [f"%{bl_number}%"] * len(where_clauses)
         else:
-            where_sql = " OR ".join(base_conditions)
-            params = []
+            where_sql = f"({' OR '.join(base_conditions)}) AND {reserve_filter}"
 
+        # Main query
         query = f'''
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1457,31 +1460,27 @@ def get_awaiting_bank_in_bills():
             ORDER BY id DESC
             LIMIT %s OFFSET %s
         '''
+        query_params = params + [page_size, offset]
         print("QUERY:", query)
-        print("PARAMS:", params)
-        cur.execute(query, tuple(params) + (page_size, offset))
+        print("PARAMS:", query_params)
+        cur.execute(query, tuple(query_params))
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
         bills = []
         for row in rows:
             bill_dict = dict(zip(columns, row))
-            # Exclude entries with reserve_status == 'Reserve Settled'
-            if bill_dict.get('reserve_status', '').strip().lower() == 'reserve settled':
-                continue
             if bill_dict.get('customer_email'):
                 bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
             if bill_dict.get('customer_phone'):
                 bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
             bills.append(bill_dict)
 
-        # Get total count (apply same filter)
-        count_query = f'SELECT id, reserve_status FROM bill_of_lading WHERE {where_sql}'
+        # Count query (for pagination)
+        count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
         print("COUNT QUERY:", count_query)
         print("COUNT PARAMS:", params)
         cur.execute(count_query, tuple(params))
-        count_rows = cur.fetchall()
-        # Only count those not 'Reserve Settled'
-        total_count = sum(1 for row in count_rows if (row[1] or '').strip().lower() != 'reserve settled')
+        total_count = cur.fetchone()[0]
 
         return jsonify({
             'bills': bills,
