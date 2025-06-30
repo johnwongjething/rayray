@@ -1462,9 +1462,16 @@ def get_awaiting_bank_in_bills():
         print("PARAMS:", params)
         cur.execute(query, params)
         rows = cur.fetchall()
+        if not cur.description:
+            print("❌ cur.description is None — no columns returned from DB.")
+            return jsonify({'bills': [], 'total': 0})
         columns = [desc[0] for desc in cur.description]
         bills = []
-        for row in rows:
+        for idx, row in enumerate(rows):
+            if len(row) != len(columns):
+                print(f"⚠️ Row {idx} length mismatch: expected {len(columns)}, got {len(row)}")
+                print("❌ Row content:", row)
+                continue  # Skip malformed row
             bill_dict = dict(zip(columns, row))
             if bill_dict.get('customer_email'):
                 bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
@@ -1482,6 +1489,7 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
+
 
 @app.route('/api/request_username', methods=['POST'])
 def request_username():
