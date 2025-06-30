@@ -1419,35 +1419,42 @@ def get_bills_by_status(status):
 def get_awaiting_bank_in_bills():
     try:
         bl_number = request.args.get('bl_number', '').strip()
+
         conn = get_db_conn()
         cur = conn.cursor()
 
+        # Base conditions
         base_conditions = [
-            "(status = 'Awaiting Bank In')",
+            "status = 'Awaiting Bank In'",
             "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
         ]
+        additional_condition = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
+        params = []
+        where_sql = ""
+
+        # With B/L number search
         if bl_number:
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-            where_sql = " OR ".join(where_clauses)
-            final_where = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+            where_sql = f"({' OR '.join(where_clauses)}) AND {additional_condition}"
             params = [f"%{bl_number}%"] * len(where_clauses)
         else:
-            final_where = f"({' OR '.join(base_conditions)}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
-            params = []
+            where_sql = f"({' OR '.join(base_conditions)}) AND {additional_condition}"
 
-        query = f'''
+        # Final query
+        query = f"""
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
                    payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
                    receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
                    payment_method, payment_status, reserve_status
             FROM bill_of_lading
-            WHERE {final_where}
+            WHERE {where_sql}
             ORDER BY id DESC
-        '''
-        print("QUERY:", query)
-        print("PARAMS:", params)
+        """
+
+        print("EXECUTING SQL QUERY:", query)
+        print("WITH PARAMS:", params)
 
         cur.execute(query, tuple(params))
         rows = cur.fetchall()
@@ -1471,9 +1478,9 @@ def get_awaiting_bank_in_bills():
             'page': 1,
             'page_size': len(bills)
         })
-    
+
     except Exception as e:
-        print("ERROR in awaiting_bank_in:", str(e))
+        print("❌ ERROR in awaiting_bank_in:", str(e))
         return jsonify({'error': 'Internal server error'}), 500
 
 
