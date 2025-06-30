@@ -1509,15 +1509,18 @@ def get_awaiting_bank_in_bills():
                 bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
             bills.append(bill_dict)
 
-        # Total count (only those NOT 'Reserve Settled')
+# Total count (only those NOT 'Reserve Settled')
         count_query = f"""
             SELECT COUNT(*)
             FROM bill_of_lading
             WHERE ({where_sql})
-              AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')
-        """
+                AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')
+            """
         cur.execute(count_query, tuple(params))
-        total_count = cur.fetchone()[0]
+        result = cur.fetchone()
+        total_count = result[0] if result and len(result) > 0 else 0
+
+
 
         return jsonify({
             'bills': bills,
