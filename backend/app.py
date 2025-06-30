@@ -1445,10 +1445,8 @@ def get_awaiting_bank_in_bills():
             where_sql = " OR ".join(base_conditions)
             params = []
 
-        # Exclude settled reserve entries
         where_sql = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
-        # Final SQL
         data_query = f"""
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1473,21 +1471,22 @@ def get_awaiting_bank_in_bills():
         bills = []
         for idx, row in enumerate(rows):
             if len(row) != len(columns):
-                print(f"⚠️ Row {idx} length mismatch: expected {len(columns)}, got {len(row)}")
-                print("❌ Row content:", row)
-                continue  # Skip malformed row
+                print(f"❌ Skipping row {idx}: length mismatch {len(row)} != {len(columns)}")
+                continue  # skip malformed row
+
+            bill_dict = dict(zip(columns, row))
             try:
-                bill_dict = dict(zip(columns, row))
                 if bill_dict.get('customer_email'):
                     bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
                 if bill_dict.get('customer_phone'):
                     bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-                bills.append(bill_dict)
             except Exception as e:
-                print(f"❌ Error processing row {idx}: {e}")
+                print(f"⚠️ Error decrypting row {idx}: {e}")
                 continue
 
-        # Count query (for pagination)
+            bills.append(bill_dict)
+
+        # Count total rows
         count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
         print("✅ COUNT QUERY:\n", count_query)
         print("✅ COUNT PARAMS:", params)
