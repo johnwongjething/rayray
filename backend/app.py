@@ -1420,6 +1420,7 @@ def get_bills_by_status(status):
     conn.close()  
     return jsonify(bills)
 
+
 @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
 @jwt_required()
 def get_awaiting_bank_in_bills():
@@ -1431,11 +1432,9 @@ def get_awaiting_bank_in_bills():
         where_clauses = []
         params = []
 
-        # Always filter out reserve settled
         reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
         where_clauses.append(reserve_filter)
 
-        # Main conditions
         if bl_number:
             where_clauses.append(
                 "((status = 'Awaiting Bank In' AND bl_number ILIKE %s) OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s))"
@@ -1449,11 +1448,11 @@ def get_awaiting_bank_in_bills():
         where_sql = " AND ".join(where_clauses)
 
         query = f'''
-            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
+            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, ocr_text, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
                    payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
-                   receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
-                   payment_method, payment_status, reserve_status
+                   updated_at, receipt_uploaded_at, completed_at, customer_username, customer_invoice, customer_packing_list,
+                   flight_or_vessel, product_description, payment_method, payment_status, reserve_amount, reserve_status
             FROM bill_of_lading
             WHERE {where_sql}
             ORDER BY id DESC
