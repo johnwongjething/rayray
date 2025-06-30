@@ -1455,24 +1455,22 @@ def get_awaiting_bank_in_bills():
         print("PARAMS:", params)
         cur.execute(query, params)
         rows = cur.fetchall()
+        print("Rows:", rows)
+        print("cur.description:", cur.description)
         if not cur.description:
             print("❌ cur.description is None — no columns returned from DB.")
             return jsonify({'bills': [], 'total': 0})
         columns = [desc[0] for desc in cur.description]
-        print(f"Number of columns: {len(columns)}")
+        print("Columns:", columns)
         bills = []
         for idx, row in enumerate(rows):
             print(f"Row {idx} length: {len(row)}")
+            print(f"Row {idx} content: {row}")
             if len(row) != len(columns):
                 print(f"⚠️ Row {idx} length mismatch: expected {len(columns)}, got {len(row)}")
                 print("❌ Row content:", row)
                 continue  # Skip malformed row
             bill_dict = dict(zip(columns, row))
-            # Decrypt sensitive fields if present
-            if bill_dict.get('customer_email'):
-                bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-            if bill_dict.get('customer_phone'):
-                bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
             bills.append(bill_dict)
 
         return jsonify({'bills': bills, 'total': len(bills)})
