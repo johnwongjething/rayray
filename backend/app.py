@@ -1468,7 +1468,6 @@ def get_awaiting_bank_in_bills():
             pass
 
 
-
 @app.route('/api/request_username', methods=['POST'])
 def request_username():
     data = request.get_json()
