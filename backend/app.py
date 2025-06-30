@@ -1465,36 +1465,32 @@ def get_awaiting_bank_in_bills():
         "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
     ]
 
-    params = []
-    count_params = []
-    
-    if bl_number:
-        where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-        where_sql = " OR ".join(where_clauses)
-        params = [f"%{bl_number}%"] * len(where_clauses)
-        count_params = list(params)
-    else:
-        where_sql = " OR ".join(base_conditions)
-        count_params = []
-
-    query = f'''
-        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
-               port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
-               payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
-               receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
-               payment_method, payment_status, reserve_status
-        FROM bill_of_lading
-        WHERE {where_sql}
-        ORDER BY id DESC
-        LIMIT %s OFFSET %s
-    '''
-    final_params = params + [page_size, offset]
-
+    bills = []
     try:
-        cur.execute(query, tuple(final_params))
+        if bl_number:
+            where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
+            where_sql = " OR ".join(where_clauses)
+            filter_params = [f"%{bl_number}%"] * len(where_clauses)
+        else:
+            where_sql = " OR ".join(base_conditions)
+            filter_params = []
+
+        # Fetch paginated results
+        query = f'''
+            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
+                   port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
+                   payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
+                   receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
+                   payment_method, payment_status, reserve_status
+            FROM bill_of_lading
+            WHERE {where_sql}
+            ORDER BY id DESC
+            LIMIT %s OFFSET %s
+        '''
+        cur.execute(query, tuple(filter_params + [page_size, offset]))
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
-        bills = []
+
         for row in rows:
             bill_dict = dict(zip(columns, row))
             if (bill_dict.get('reserve_status') or '').strip().lower() == 'reserve settled':
@@ -1505,15 +1501,19 @@ def get_awaiting_bank_in_bills():
                 bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
             bills.append(bill_dict)
 
-        # Count query (same logic as above)
-        count_query = f"SELECT reserve_status FROM bill_of_lading WHERE {where_sql}"
-        cur.execute(count_query, tuple(count_params))
+        # Fetch total count with same filtering logic
+        count_query = f'''
+            SELECT reserve_status
+            FROM bill_of_lading
+            WHERE {where_sql}
+        '''
+        cur.execute(count_query, tuple(filter_params))
         count_rows = cur.fetchall()
         total_count = sum(1 for row in count_rows if (row[0] or '').strip().lower() != 'reserve settled')
 
     except Exception as e:
         print("ERROR in awaiting_bank_in:", str(e))
-        return jsonify({'error': 'Server error'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
     finally:
         cur.close()
         conn.close()
@@ -1524,6 +1524,7 @@ def get_awaiting_bank_in_bills():
         'page': page,
         'page_size': page_size
     })
+
 
 @app.route('/api/request_username', methods=['POST'])
 def request_username():
