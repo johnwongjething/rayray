@@ -1465,8 +1465,8 @@ def get_awaiting_bank_in_bills():
         "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
     ]
 
-    bills = []
     try:
+        # ----- Build WHERE clause -----
         if bl_number:
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
             where_sql = " OR ".join(where_clauses)
@@ -1475,7 +1475,7 @@ def get_awaiting_bank_in_bills():
             where_sql = " OR ".join(base_conditions)
             filter_params = []
 
-        # Fetch paginated results
+        # ----- Paginated query -----
         query = f'''
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1491,6 +1491,7 @@ def get_awaiting_bank_in_bills():
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
 
+        bills = []
         for row in rows:
             bill_dict = dict(zip(columns, row))
             if (bill_dict.get('reserve_status') or '').strip().lower() == 'reserve settled':
@@ -1501,15 +1502,15 @@ def get_awaiting_bank_in_bills():
                 bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
             bills.append(bill_dict)
 
-        # Fetch total count with same filtering logic
+        # ----- Count query -----
         count_query = f'''
-            SELECT reserve_status
+            SELECT COUNT(*)
             FROM bill_of_lading
-            WHERE {where_sql}
+            WHERE ({where_sql})
+              AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')
         '''
         cur.execute(count_query, tuple(filter_params))
-        count_rows = cur.fetchall()
-        total_count = sum(1 for row in count_rows if (row[0] or '').strip().lower() != 'reserve settled')
+        total_count = cur.fetchone()[0]
 
     except Exception as e:
         print("ERROR in awaiting_bank_in:", str(e))
