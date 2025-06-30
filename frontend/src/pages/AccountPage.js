@@ -170,18 +170,30 @@ const AccountPage = ({ t = x => x }) => {
         </Button>
       </div>
       {/* Summary */}
-      <div className="summary" style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-        <div style={{ margin: '0 32px', textAlign: 'center' }}>
+      <div className="summary" style={{ display: 'flex', justifyContent: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 32 }}>
+        <div style={{ textAlign: 'center' }}>
           <h3>{t('totalEntries')}</h3>
           <div style={{ fontSize: 24 }}>{summary.totalEntries}</div>
         </div>
-        <div style={{ margin: '0 32px', textAlign: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
           <h3>{t('totalCtnFees')}</h3>
           <div style={{ fontSize: 24 }}>${summary.totalCtnFee}</div>
         </div>
-        <div style={{ margin: '0 32px', textAlign: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
           <h3>{t('totalServiceFee')}</h3>
           <div style={{ fontSize: 24 }}>${summary.totalServiceFee}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <h3>Bank Transfer</h3>
+          <div style={{ fontSize: 24 }}>${summary.bankTotal}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <h3>Allinpay 85%</h3>
+          <div style={{ fontSize: 24 }}>${summary.allinpay85Total}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <h3>Allinpay Reserve</h3>
+          <div style={{ fontSize: 24 }}>${summary.reserveTotal}</div>
         </div>
       </div>
       {/* Table of results */}
