@@ -1355,30 +1355,37 @@ def account_bills():
     total_reserve_service = 0
 
     for row in rows:
-    bill = dict(zip(columns, row))
-    # ...decryption and append to bills...
+        bill = dict(zip(columns, row))
 
-    try:
-        ctn_fee = float(bill.get('ctn_fee'))
-        service_fee = float(bill.get('service_fee'))
-    except (TypeError, ValueError):
-        continue
+        # Decrypt sensitive fields
+        if bill.get('customer_email'):
+            bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
+        if bill.get('customer_phone'):
+            bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
 
-    valid_bills.append(bill)
+        bills.append(bill)
 
-    if bill.get('payment_method') == 'Allinpay':
-        # Always add 85% to allinpay85
-        total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
-        total_allinpay_85_service += round(service_fee * 0.85, 2)
-        # Only add 15% to reserve if settled
-        reserve_status = (bill.get('reserve_status') or '').lower()
-        if reserve_status in ['settled', 'reserve settled']:
-            total_reserve_ctn += round(ctn_fee * 0.15, 2)
-            total_reserve_service += round(service_fee * 0.15, 2)
-    else:
-        total_bank_ctn += ctn_fee
-        total_bank_service += service_fee
+        # Convert fee strings to float, skip if invalid
+        try:
+            ctn_fee = float(bill.get('ctn_fee'))
+            service_fee = float(bill.get('service_fee'))
+        except (TypeError, ValueError):
+            continue  # skip this bill for summary
 
+        valid_bills.append(bill)
+
+        if bill.get('payment_method') == 'Allinpay':
+            # Always add 85% to allinpay85
+            total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
+            total_allinpay_85_service += round(service_fee * 0.85, 2)
+            # Only add 15% to reserve if settled
+            reserve_status = (bill.get('reserve_status') or '').lower()
+            if reserve_status in ['settled', 'reserve settled']:
+                total_reserve_ctn += round(ctn_fee * 0.15, 2)
+                total_reserve_service += round(service_fee * 0.15, 2)
+        else:
+            total_bank_ctn += ctn_fee
+            total_bank_service += service_fee
 
     summary = {
         'totalEntries': len(valid_bills),
@@ -1392,6 +1399,8 @@ def account_bills():
     cur.close()
     conn.close()
     return jsonify({'bills': bills, 'summary': summary})
+
+
 
 # @app.route('/api/account_bills', methods=['GET'])
 # def account_bills():
