@@ -1420,6 +1420,7 @@ def get_bills_by_status(status):
     conn.close()  
     return jsonify(bills)
 
+
 @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
 @jwt_required()
 def get_awaiting_bank_in_bills():
@@ -1432,25 +1433,25 @@ def get_awaiting_bank_in_bills():
 
         params = []
         if bl_number:
-            where_sql = f"""{reserve_filter} AND (
-                (status = 'Awaiting Bank In' AND bl_number ILIKE %s)
-                OR
-                (payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s)
-            )"""
+            where_sql = (
+                f"{reserve_filter} AND ("
+                "(status = 'Awaiting Bank In' AND bl_number ILIKE %s) "
+                "OR "
+                "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s)"
+                ")"
+            )
             params = [f"%{bl_number}%", f"%{bl_number}%"]
         else:
-            where_sql = f"""{reserve_filter} AND (
-                (status = 'Awaiting Bank In')
-                OR
-                (payment_method = 'Allinpay' AND payment_status = 'Paid 85%')
-            )"""
+            where_sql = (
+                f"{reserve_filter} AND ("
+                "(status = 'Awaiting Bank In') "
+                "OR "
+                "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
+                ")"
+            )
             params = []
 
-        query = f'''
-            SELECT * FROM bill_of_lading
-            WHERE {where_sql}
-            ORDER BY id DESC
-        '''
+        query = f"SELECT * FROM bill_of_lading WHERE {where_sql} ORDER BY id DESC"
         print("QUERY:", query)
         print("PARAMS:", params)
         if params:
@@ -1476,6 +1477,7 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
+
 
 
 # @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
