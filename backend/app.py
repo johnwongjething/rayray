@@ -1470,7 +1470,7 @@ def get_awaiting_bank_in_bills():
                 bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
             bills.append(bill_dict)
 
-        # Count query (for pagination)
+        # Count query (for total)
         count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
         print("COUNT QUERY:", count_query)
         print("COUNT PARAMS:", params)
