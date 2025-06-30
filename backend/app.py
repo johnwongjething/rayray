@@ -1420,7 +1420,6 @@ def get_bills_by_status(status):
     conn.close()  
     return jsonify(bills)
 
-
 @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
 @jwt_required()
 def get_awaiting_bank_in_bills():
@@ -1433,22 +1432,20 @@ def get_awaiting_bank_in_bills():
         conn = get_db_conn()
         cur = conn.cursor()
 
-        # Build WHERE clause and params
         base_conditions = [
             "(status = 'Awaiting Bank In')",
             "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
         ]
         reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
-        params = []
         if bl_number:
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
             where_sql = f"({' OR '.join(where_clauses)}) AND {reserve_filter}"
             params = [f"%{bl_number}%"] * len(where_clauses)
         else:
             where_sql = f"({' OR '.join(base_conditions)}) AND {reserve_filter}"
+            params = []
 
-        # Main query
         query = f'''
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1460,6 +1457,7 @@ def get_awaiting_bank_in_bills():
             ORDER BY id DESC
             LIMIT %s OFFSET %s
         '''
+        # Always add LIMIT/OFFSET as the last params
         query_params = params + [page_size, offset]
         print("QUERY:", query)
         print("PARAMS:", query_params)
@@ -1497,7 +1495,6 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
-
 
 
 
