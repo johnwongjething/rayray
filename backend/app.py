@@ -1488,18 +1488,22 @@ def get_awaiting_bank_in_bills():
             bills.append(bill)
 
         # Count query (safe fallback)
-        count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {full_where}"
+        count_query = f'''
+            SELECT COUNT(*) FROM bill_of_lading
+            WHERE ({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')
+        '''
         print("✅ COUNT QUERY:", count_query)
         print("✅ COUNT PARAMS:", params)
+   
         cur.execute(count_query, tuple(params))
-        total = cur.fetchone()[0]
+        total_count = cur.fetchone()[0]
 
         cur.close()
         conn.close()
 
         return jsonify({
             'bills': bills,
-            'total': total,
+            'total': total_count,
             'page': page,
             'page_size': page_size
         })
