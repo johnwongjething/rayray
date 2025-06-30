@@ -1469,11 +1469,9 @@ def get_awaiting_bank_in_bills():
         where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
         where_sql = " OR ".join(where_clauses)
         params = [f"%{bl_number}%"] * len(where_clauses)
-        count_params = list(params)
     else:
         where_sql = " OR ".join(base_conditions)
         params = []
-        count_params = []
 
     query = f'''
              SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
