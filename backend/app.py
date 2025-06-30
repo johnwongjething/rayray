@@ -1431,17 +1431,18 @@ def get_awaiting_bank_in_bills():
         where_clauses = []
         params = []
 
-        reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
-        where_clauses.append(reserve_filter)
-
+        # Remove reserve_status filter!
+        # Only filter by status/payment_method and optional bl_number
         if bl_number:
             where_clauses.append(
-                "((status = 'Awaiting Bank In' AND bl_number ILIKE %s) OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s))"
+                "((status = 'Awaiting Bank In' AND bl_number ILIKE %s) OR "
+                "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s))"
             )
             params.extend([f"%{bl_number}%", f"%{bl_number}%"])
         else:
             where_clauses.append(
-                "((status = 'Awaiting Bank In') OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%'))"
+                "((status = 'Awaiting Bank In') OR "
+                "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%'))"
             )
 
         where_sql = " AND ".join(where_clauses)
@@ -1450,8 +1451,7 @@ def get_awaiting_bank_in_bills():
             "WHERE " + where_sql + " "
             "ORDER BY id DESC"
         )
-        print("QUERY:", query)
-        print("PARAMS:", params)
+
         if params:
             cur.execute(query, tuple(params))
         else:
@@ -1461,6 +1461,11 @@ def get_awaiting_bank_in_bills():
         bills = []
         for row in rows:
             bill_dict = dict(zip(columns, row))
+            # Decrypt email and phone if needed
+            if bill_dict.get('customer_email') is not None:
+                bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+            if bill_dict.get('customer_phone') is not None:
+                bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
             bills.append(bill_dict)
 
         return jsonify({'bills': bills, 'total': len(bills)})
@@ -1475,7 +1480,6 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
-
 
 
 # @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
