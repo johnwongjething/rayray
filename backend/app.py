@@ -909,15 +909,43 @@ def complete_bill(bill_id):
     conn = get_db_conn()
     cur = conn.cursor()
     hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
-    cur.execute("""
-        UPDATE bill_of_lading
-        SET status=%s, completed_at=%s
-        WHERE id=%s
-    """, ('Paid and CTN Valid', hk_now, bill_id))
+    # Check payment_method for this bill
+    cur.execute("SELECT payment_method FROM bill_of_lading WHERE id=%s", (bill_id,))
+    row = cur.fetchone()
+    if row and row[0] and row[0].lower() == 'allinpay':
+        # For Allinpay, also update payment_status to 'Paid 100%'
+        cur.execute("""
+            UPDATE bill_of_lading
+            SET status=%s, payment_status=%s, completed_at=%s
+            WHERE id=%s
+        """, ('Paid and CTN Valid', 'Paid 100%', hk_now, bill_id))
+    else:
+        # For others, just update status and completed_at
+        cur.execute("""
+            UPDATE bill_of_lading
+            SET status=%s, completed_at=%s
+            WHERE id=%s
+        """, ('Paid and CTN Valid', hk_now, bill_id))
     conn.commit()
     cur.close()
     conn.close()
     return jsonify({'message': 'Bill marked as completed'})
+
+
+# @app.route('/api/bill/<int:bill_id>/complete', methods=['POST'])
+# def complete_bill(bill_id):
+#     conn = get_db_conn()
+#     cur = conn.cursor()
+#     hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
+#     cur.execute("""
+#         UPDATE bill_of_lading
+#         SET status=%s, completed_at=%s
+#         WHERE id=%s
+#     """, ('Paid and CTN Valid', hk_now, bill_id))
+#     conn.commit()
+#     cur.close()
+#     conn.close()
+#     return jsonify({'message': 'Bill marked as completed'})
 
 @app.route('/api/search_bills', methods=['POST'])
 @jwt_required()
