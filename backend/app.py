@@ -1424,46 +1424,38 @@ def get_bills_by_status(status):
 @jwt_required()
 def get_awaiting_bank_in_bills():
     try:
-        page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', 50))
-        offset = (page - 1) * page_size
         bl_number = request.args.get('bl_number', '').strip()
-
         conn = get_db_conn()
         cur = conn.cursor()
 
         where_clauses = []
         params = []
 
-        # Common clause
-        where_clauses.append("(reserve_status IS NULL OR reserve_status != 'Reserve Settled')")
+        reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+        where_clauses.append(reserve_filter)
 
-        # Conditional clause
         if bl_number:
-            where_clauses.append("""
-                ((status = 'Awaiting Bank In' AND bl_number ILIKE %s) 
-                OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s))
-            """)
-            params += [f"%{bl_number}%", f"%{bl_number}%"]
+            where_clauses.append(
+                "((status = 'Awaiting Bank In' AND bl_number ILIKE %s) OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s))"
+            )
+            params.extend([f"%{bl_number}%", f"%{bl_number}%"])
         else:
-            where_clauses.append("""
-                ((status = 'Awaiting Bank In') 
-                OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%'))
-            """)
+            where_clauses.append(
+                "((status = 'Awaiting Bank In') OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%'))"
+            )
 
         where_sql = " AND ".join(where_clauses)
-        query = f"""
-            SELECT * FROM bill_of_lading
-            WHERE {where_sql}
-            ORDER BY id DESC
-            LIMIT %s OFFSET %s
-        """
-        params += [page_size, offset]
-
-        print("✅ QUERY:", query)
-        print("✅ PARAMS:", params)
-
-        cur.execute(query, tuple(params))
+        query = (
+            "SELECT * FROM bill_of_lading "
+            "WHERE " + where_sql + " "
+            "ORDER BY id DESC"
+        )
+        print("QUERY:", query)
+        print("PARAMS:", params)
+        if params:
+            cur.execute(query, tuple(params))
+        else:
+            cur.execute(query)
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
         bills = []
@@ -1471,12 +1463,7 @@ def get_awaiting_bank_in_bills():
             bill_dict = dict(zip(columns, row))
             bills.append(bill_dict)
 
-        return jsonify({
-            'bills': bills,
-            'total': len(bills),
-            'page': page,
-            'page_size': page_size
-        })
+        return jsonify({'bills': bills, 'total': len(bills)})
     except Exception as e:
         print("❌ ERROR in awaiting_bank_in:", str(e))
         import traceback
