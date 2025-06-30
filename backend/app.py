@@ -1424,7 +1424,12 @@ def get_bills_by_status(status):
 @jwt_required()
 def get_awaiting_bank_in_bills():
     try:
-        bl_number = request.args.get('bl_number', '').strip()
+        bl_number = request.args.get('bl_number')
+        if bl_number is not None:
+            bl_number = bl_number.strip()
+        else:
+            bl_number = ''
+
         conn = get_db_conn()
         cur = conn.cursor()
 
@@ -1434,6 +1439,7 @@ def get_awaiting_bank_in_bills():
         reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
         where_clauses.append(reserve_filter)
 
+        # Only add search if bl_number is not empty
         if bl_number:
             where_clauses.append(
                 "((status = 'Awaiting Bank In' AND bl_number ILIKE %s) OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s))"
@@ -1453,23 +1459,11 @@ def get_awaiting_bank_in_bills():
         '''
         print("QUERY:", query)
         print("PARAMS:", params)
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
-        print("Rows:", rows)
-        print("cur.description:", cur.description)
-        if not cur.description:
-            print("❌ cur.description is None — no columns returned from DB.")
-            return jsonify({'bills': [], 'total': 0})
         columns = [desc[0] for desc in cur.description]
-        print("Number of columns:", len(columns))
         bills = []
-        for idx, row in enumerate(rows):
-            print(f"Row {idx} length: {len(row)}")
-            print(f"Row {idx} content: {row}")
-            if len(row) != len(columns):
-                print(f"⚠️ Row {idx} length mismatch: expected {len(columns)}, got {len(row)}")
-                print("❌ Row content:", row)
-                continue  # Skip malformed row
+        for row in rows:
             bill_dict = dict(zip(columns, row))
             bills.append(bill_dict)
 
@@ -1485,8 +1479,6 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
-
-
 
 
 @app.route('/api/request_username', methods=['POST'])
