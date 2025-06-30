@@ -1438,6 +1438,7 @@ def get_awaiting_bank_in_bills():
         ]
 
         if bl_number:
+            # Apply B/L filter on each condition
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
             where_sql = " OR ".join(where_clauses)
             params = [f"%{bl_number}%"] * len(where_clauses)
@@ -1446,22 +1447,22 @@ def get_awaiting_bank_in_bills():
             params = []
 
         # Add reserve exclusion
-        full_where = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+        where_sql = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
-        data_query = f"""
+        # Data query
+        data_query = f'''
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
                    payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
                    receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
                    payment_method, payment_status, reserve_status
             FROM bill_of_lading
-            WHERE {full_where}
+            WHERE {where_sql}
             ORDER BY id DESC
             LIMIT %s OFFSET %s
-        """
+        '''
 
         data_params = params + [page_size, offset]
-
         print("✅ DATA QUERY:\n", data_query)
         print("✅ DATA PARAMS:", data_params)
 
@@ -1470,32 +1471,37 @@ def get_awaiting_bank_in_bills():
         columns = [desc[0] for desc in cur.description]
 
         bills = []
-        for i, row in enumerate(rows):
-            if len(row) != len(columns):
-                print(f"⚠️ Skipping malformed row #{i} - expected {len(columns)} cols but got {len(row)}")
-                continue
+        for row in rows:
+            bill_dict = dict(zip(columns, row))
+            if bill_dict.get('customer_email'):
+                bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+            if bill_dict.get('customer_phone'):
+                bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+            bills.append(bill_dict)
 
-            bill = dict(zip(columns, row))
-            try:
-                if bill.get('customer_email'):
-                    bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
-                if bill.get('customer_phone'):
-                    bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
-            except Exception as e:
-                print(f"⚠️ Failed to decrypt sensitive data for row #{i}: {e}")
-                continue
+        # Count query (same where logic)
+        count_conditions = [
+            "(status = 'Awaiting Bank In')",
+            "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
+        ]
+        if bl_number:
+            count_where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in count_conditions]
+            count_where_sql = " OR ".join(count_where_clauses)
+            count_params = [f"%{bl_number}%"] * len(count_where_clauses)
+        else:
+            count_where_sql = " OR ".join(count_conditions)
+            count_params = []
 
-            bills.append(bill)
+        count_where_sql = f"({count_where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
-        # Count query (safe fallback)
         count_query = f'''
             SELECT COUNT(*) FROM bill_of_lading
-            WHERE ({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')
+            WHERE {count_where_sql}
         '''
-        print("✅ COUNT QUERY:", count_query)
-        print("✅ COUNT PARAMS:", params)
-   
-        cur.execute(count_query, tuple(params))
+        print("✅ COUNT QUERY:\n", count_query)
+        print("✅ COUNT PARAMS:", count_params)
+
+        cur.execute(count_query, tuple(count_params))
         total_count = cur.fetchone()[0]
 
         cur.close()
@@ -1507,11 +1513,10 @@ def get_awaiting_bank_in_bills():
             'page': page,
             'page_size': page_size
         })
-
+    
     except Exception as e:
         print("❌ ERROR in awaiting_bank_in:", str(e))
-        return jsonify({'error': str(e)}), 500
-
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @app.route('/api/request_username', methods=['POST'])
