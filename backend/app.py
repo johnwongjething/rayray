@@ -1428,19 +1428,25 @@ def get_awaiting_bank_in_bills():
         conn = get_db_conn()
         cur = conn.cursor()
 
-        base_conditions = [
-            "(status = 'Awaiting Bank In')",
-            "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
-        ]
-        reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+        where_clauses = []
+        params = []
 
+        # Always filter out reserve settled
+        reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+        where_clauses.append(reserve_filter)
+
+        # Main conditions
         if bl_number:
-            where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-            where_sql = f"({' OR '.join(where_clauses)}) AND {reserve_filter}"
-            params = [f"%{bl_number}%"] * len(where_clauses)
+            where_clauses.append(
+                "((status = 'Awaiting Bank In' AND bl_number ILIKE %s) OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s))"
+            )
+            params.extend([f"%{bl_number}%", f"%{bl_number}%"])
         else:
-            where_sql = f"({' OR '.join(base_conditions)}) AND {reserve_filter}"
-            params = []
+            where_clauses.append(
+                "((status = 'Awaiting Bank In') OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%'))"
+            )
+
+        where_sql = " AND ".join(where_clauses)
 
         query = f'''
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
@@ -1454,10 +1460,7 @@ def get_awaiting_bank_in_bills():
         '''
         print("QUERY:", query)
         print("PARAMS:", params)
-        if params:
-            cur.execute(query, tuple(params))
-        else:
-            cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
         bills = []
@@ -1479,7 +1482,6 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
-
 
 @app.route('/api/request_username', methods=['POST'])
 def request_username():
