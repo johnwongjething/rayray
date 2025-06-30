@@ -1461,7 +1461,7 @@ def get_awaiting_bank_in_bills():
             print("❌ cur.description is None — no columns returned from DB.")
             return jsonify({'bills': [], 'total': 0})
         columns = [desc[0] for desc in cur.description]
-        print("Columns:", columns)
+        print("Number of columns:", len(columns))
         bills = []
         for idx, row in enumerate(rows):
             print(f"Row {idx} length: {len(row)}")
@@ -1476,6 +1476,8 @@ def get_awaiting_bank_in_bills():
         return jsonify({'bills': bills, 'total': len(bills)})
     except Exception as e:
         print("❌ ERROR in awaiting_bank_in:", str(e))
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Internal server error'}), 500
     finally:
         try:
@@ -1483,6 +1485,7 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
+
 
 
 
