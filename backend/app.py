@@ -1445,7 +1445,8 @@ def get_awaiting_bank_in_bills():
             where_sql = " OR ".join(base_conditions)
             params = []
 
-        where_sql = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+        # Add reserve exclusion
+        full_where = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
         data_query = f"""
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
@@ -1454,12 +1455,12 @@ def get_awaiting_bank_in_bills():
                    receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
                    payment_method, payment_status, reserve_status
             FROM bill_of_lading
-            WHERE {where_sql}
+            WHERE {full_where}
             ORDER BY id DESC
             LIMIT %s OFFSET %s
         """
 
-        data_params = list(params) + [page_size, offset]
+        data_params = params + [page_size, offset]
 
         print("✅ DATA QUERY:\n", data_query)
         print("✅ DATA PARAMS:", data_params)
@@ -1469,30 +1470,29 @@ def get_awaiting_bank_in_bills():
         columns = [desc[0] for desc in cur.description]
 
         bills = []
-        for idx, row in enumerate(rows):
+        for i, row in enumerate(rows):
             if len(row) != len(columns):
-                print(f"❌ Skipping row {idx}: length mismatch {len(row)} != {len(columns)}")
-                continue  # skip malformed row
-
-            bill_dict = dict(zip(columns, row))
-            try:
-                if bill_dict.get('customer_email'):
-                    bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-                if bill_dict.get('customer_phone'):
-                    bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-            except Exception as e:
-                print(f"⚠️ Error decrypting row {idx}: {e}")
+                print(f"⚠️ Skipping malformed row #{i} - expected {len(columns)} cols but got {len(row)}")
                 continue
 
-            bills.append(bill_dict)
+            bill = dict(zip(columns, row))
+            try:
+                if bill.get('customer_email'):
+                    bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
+                if bill.get('customer_phone'):
+                    bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+            except Exception as e:
+                print(f"⚠️ Failed to decrypt sensitive data for row #{i}: {e}")
+                continue
 
-        # Count total rows
-        count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
-        print("✅ COUNT QUERY:\n", count_query)
+            bills.append(bill)
+
+        # Count query (safe fallback)
+        count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {full_where}"
+        print("✅ COUNT QUERY:", count_query)
         print("✅ COUNT PARAMS:", params)
-
         cur.execute(count_query, tuple(params))
-        total = cur.fetchone()[0] if cur.rowcount else 0
+        total = cur.fetchone()[0]
 
         cur.close()
         conn.close()
@@ -1507,7 +1507,6 @@ def get_awaiting_bank_in_bills():
     except Exception as e:
         print("❌ ERROR in awaiting_bank_in:", str(e))
         return jsonify({'error': str(e)}), 500
-
 
 
 
