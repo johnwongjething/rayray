@@ -12,16 +12,23 @@ const AccountPage = ({ t = x => x }) => {
   const [date, setDate] = useState(null);
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState({ totalCtnFee: 0, totalServiceFee: 0, totalEntries: 0 });
+  const [summary, setSummary] = useState({
+    totalEntries: 0,
+    totalCtnFee: 0,
+    totalServiceFee: 0,
+    bankTotal: 0,
+    allinpay85Total: 0,
+    reserveTotal: 0
+  });
   const navigate = useNavigate();
 
-  // Move columns definition here so t is always defined
   const columns = [
     { title: t('blNumber'), dataIndex: 'bl_number', key: 'bl_number' },
     { title: t('ctnFee'), dataIndex: 'ctn_fee', key: 'ctn_fee', render: v => `$${v}` },
     { title: t('serviceFee'), dataIndex: 'service_fee', key: 'service_fee', render: v => `$${v}` },
     { title: t('total'), key: 'total', render: r => `$${parseFloat(r.ctn_fee) + parseFloat(r.service_fee)}` },
     { title: t('customerName'), dataIndex: 'customer_name', key: 'customer_name' },
+    { title: t('paymentMethod'), dataIndex: 'payment_method', key: 'payment_method' },
     { title: t('date'), dataIndex: 'completed_at', key: 'completed_at', render: v => v ? new Date(v).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : '' },
   ];
 
@@ -37,11 +44,25 @@ const AccountPage = ({ t = x => x }) => {
       if (response.ok) {
         const data = await response.json();
         setBills(data.bills || []);
-        setSummary(data.summary || {});
+        setSummary({
+          totalEntries: data.summary?.totalEntries || 0,
+          totalCtnFee: data.summary?.totalCtnFee || 0,
+          totalServiceFee: data.summary?.totalServiceFee || 0,
+          bankTotal: data.summary?.bankTotal || 0,
+          allinpay85Total: data.summary?.allinpay85Total || 0,
+          reserveTotal: data.summary?.reserveTotal || 0
+        });
       }
     } catch (error) {
       setBills([]);
-      setSummary({ totalCtnFee: 0, totalServiceFee: 0, totalEntries: 0 });
+      setSummary({
+        totalEntries: 0,
+        totalCtnFee: 0,
+        totalServiceFee: 0,
+        bankTotal: 0,
+        allinpay85Total: 0,
+        reserveTotal: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -75,19 +96,23 @@ const AccountPage = ({ t = x => x }) => {
     doc.text(`Total Entries: ${summary.totalEntries}`, 20, 35);
     doc.text(`Total CTN Fees: $${summary.totalCtnFee}`, 20, 45);
     doc.text(`Total Service Fee: $${summary.totalServiceFee}`, 20, 55);
-    const tableColumn = ['BL Number', 'ctnFee', 'Service Fee', 'total', 'Customer Name', 'date'];
+    doc.text(`Bank Transfer: $${summary.bankTotal}`, 20, 65);
+    doc.text(`Allinpay 85%: $${summary.allinpay85Total}`, 20, 75);
+    doc.text(`Allinpay Reserve: $${summary.reserveTotal}`, 20, 85);
+    const tableColumn = ['BL Number', 'ctnFee', 'Service Fee', 'total', 'Customer Name', 'Payment Method', 'date'];
     const tableRows = bills.map(bill => [
       bill.bl_number || '',
       `$${bill.ctn_fee || 0}`,
       `$${bill.service_fee || 0}`,
       `$${parseFloat(bill.ctn_fee || 0) + parseFloat(bill.service_fee || 0)}`,
       bill.customer_name || '',
+      bill.payment_method || '',
       bill.completed_at ? new Date(bill.completed_at).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : ''
     ]);
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 70,
+      startY: 100,
       styles: {
         fontSize: 10,
         cellPadding: 4,
