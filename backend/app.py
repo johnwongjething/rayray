@@ -1475,7 +1475,6 @@ def get_awaiting_bank_in_bills():
         params = []
         count_params = []
 
-    # Use page_size and offset directly in the SQL, not as params
     query = f'''
              SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1498,21 +1497,26 @@ def get_awaiting_bank_in_bills():
     bills = []
     for row in rows:
         bill_dict = dict(zip(columns, row))
+        # Exclude entries with reserve_status == 'Reserve Settled'
+        if bill_dict.get('reserve_status', '').strip().lower() == 'reserve settled':
+            continue
         if bill_dict.get('customer_email'):
             bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
         if bill_dict.get('customer_phone'):
             bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
         bills.append(bill_dict)
 
-    # Get total count
-    count_query = f'SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}'
+    # Get total count (apply same filter)
+    count_query = f'SELECT id, reserve_status FROM bill_of_lading WHERE {where_sql}'
     print("COUNT QUERY:", count_query)
-    print("COUNT PARAMS:", count_params)
-    if count_params:
-        cur.execute(count_query, tuple(count_params))
+    print("COUNT PARAMS:", params)
+    if params:
+        cur.execute(count_query, tuple(params))
     else:
         cur.execute(count_query)
-    total_count = cur.fetchone()[0]
+    count_rows = cur.fetchall()
+    # Only count those not 'Reserve Settled'
+    total_count = sum(1 for row in count_rows if (row[1] or '').strip().lower() != 'reserve settled')
 
     cur.close()
     conn.close()
