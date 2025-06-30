@@ -1355,40 +1355,30 @@ def account_bills():
     total_reserve_service = 0
 
     for row in rows:
-        bill = dict(zip(columns, row))
+    bill = dict(zip(columns, row))
+    # ...decryption and append to bills...
 
-        # Decrypt sensitive fields
-        if bill.get('customer_email'):
-            bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
-        if bill.get('customer_phone'):
-            bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+    try:
+        ctn_fee = float(bill.get('ctn_fee'))
+        service_fee = float(bill.get('service_fee'))
+    except (TypeError, ValueError):
+        continue
 
-        bills.append(bill)
+    valid_bills.append(bill)
 
-        # Convert fee strings to float, skip if invalid
-        try:
-            ctn_fee = float(bill.get('ctn_fee'))
-            service_fee = float(bill.get('service_fee'))
-        except (TypeError, ValueError):
-            continue  # skip this bill for summary
+    if bill.get('payment_method') == 'Allinpay':
+        # Always add 85% to allinpay85
+        total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
+        total_allinpay_85_service += round(service_fee * 0.85, 2)
+        # Only add 15% to reserve if settled
+        reserve_status = (bill.get('reserve_status') or '').lower()
+        if reserve_status in ['settled', 'reserve settled']:
+            total_reserve_ctn += round(ctn_fee * 0.15, 2)
+            total_reserve_service += round(service_fee * 0.15, 2)
+    else:
+        total_bank_ctn += ctn_fee
+        total_bank_service += service_fee
 
-        valid_bills.append(bill)
-
-        # Logic based on payment method
-        if bill.get('payment_method') == 'Allinpay':
-            reserve_status = (bill.get('reserve_status') or '').lower()
-            if reserve_status in ['settled', 'reserve settled']:
-                # Reserve (15%)
-                total_reserve_ctn += round(ctn_fee * 0.15, 2)
-                total_reserve_service += round(service_fee * 0.15, 2)
-            else:
-                # 85% part
-                total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
-                total_allinpay_85_service += round(service_fee * 0.85, 2)
-        else:
-            # Assume Bank Transfer
-            total_bank_ctn += ctn_fee
-            total_bank_service += service_fee
 
     summary = {
         'totalEntries': len(valid_bills),
