@@ -1420,90 +1420,122 @@ def get_bills_by_status(status):
     conn.close()  
     return jsonify(bills)
 
-
 @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
 @jwt_required()
 def get_awaiting_bank_in_bills():
-    try:
-        page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', 50))
-        offset = (page - 1) * page_size
-        bl_number = request.args.get('bl_number', '').strip()
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 50))
+    offset = (page - 1) * page_size
+    bl_number = request.args.get('bl_number', '').strip()
 
-        conn = get_db_conn()
-        cur = conn.cursor()
+    conn = get_db_conn()
+    cur = conn.cursor()
 
-        base_conditions = [
-            "(status = 'Awaiting Bank In')",
-            "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
-        ]
+    base_conditions = [
+        "(status = 'Awaiting Bank In')",
+        "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
+    ]
 
-        # Construct WHERE clause and params
-        if bl_number:
-            where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-            where_sql = " OR ".join(where_clauses)
-            params = [f"%{bl_number}%"] * len(where_clauses)
-        else:
-            where_sql = " OR ".join(base_conditions)
-            params = []
+    if bl_number:
+        where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
+        where_sql = " OR ".join(where_clauses)
+        params = [f"%{bl_number}%"] * len(where_clauses)
+    else:
+        where_sql = " OR ".join(base_conditions)
+        params = []
 
-        # Final SQL with reserve_status filtering
-        full_where_sql = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+    query = f'''
+             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
+               port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
+               payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
+               receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
+               payment_method, payment_status, reserve_status
+        FROM bill_of_lading
+        WHERE {where_sql}
+        ORDER BY id DESC
+        LIMIT {page_size} OFFSET {offset}
+    '''
+    print("QUERY:", query)
+    print("PARAMS:", params)
+    if params:
+        cur.execute(query, tuple(params))
+    else:
+        cur.execute(query)
+    rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    bills = []
+    for row in rows:
+        bill_dict = dict(zip(columns, row))
+        # Exclude entries with reserve_status == 'Reserve Settled'
+        if bill_dict.get('reserve_status', '').strip().lower() == 'reserve settled':
+            continue
+        if bill_dict.get('customer_email'):
+            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+        if bill_dict.get('customer_phone'):
+            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+        bills.append(bill_dict)
 
-        data_query = f'''
-            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
-                   port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
-                   payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
-                   receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
-                   payment_method, payment_status, reserve_status
-            FROM bill_of_lading
-            WHERE {full_where_sql}
-            ORDER BY id DESC
-            LIMIT %s OFFSET %s
-        '''
-
-        data_params = list(params) + [page_size, offset]
-
-        print("✅ DATA QUERY:\n", data_query)
-        print("✅ DATA PARAMS:", data_params)
-
-        cur.execute(data_query, tuple(data_params))
-        rows = cur.fetchall()
-
-        # ✅ Fix: guard against empty result
-        columns = [desc[0] for desc in cur.description] if cur.description else []
-        bills = []
-        for row in rows:
-            bill_dict = dict(zip(columns, row))
-            if bill_dict.get('customer_email'):
-                bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-            if bill_dict.get('customer_phone'):
-                bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-            bills.append(bill_dict)
-
-        # Count total (with same filters)
-        count_query = f'''
-            SELECT COUNT(*) FROM bill_of_lading
-            WHERE {full_where_sql}
-        '''
-        print("✅ COUNT QUERY:\n", count_query)
-        print("✅ COUNT PARAMS:", params)
-
+    # Get total count (apply same filter)
+    count_query = f'SELECT id, reserve_status FROM bill_of_lading WHERE {where_sql}'
+    print("COUNT QUERY:", count_query)
+    print("COUNT PARAMS:", params)
+    if params:
         cur.execute(count_query, tuple(params))
-        total_count = cur.fetchone()[0] if cur.description else 0
+    else:
+        cur.execute(count_query)
+    count_rows = cur.fetchall()
+    # Only count those not 'Reserve Settled'
+    total_count = sum(1 for row in count_rows if (row[1] or '').strip().lower() != 'reserve settled')
 
-        cur.close()
-        conn.close()
+    cur.close()
+    conn.close()
 
-        return jsonify({
-            'bills': bills,
-            'total': total_count,
-            'page': page,
-            'page_size': page_size
-        })
+    return jsonify({
+        'bills': bills,
+        'total': total_count,
+        'page': page,
+        'page_size': page_size
+    })
+
+@app.route('/api/request_username', methods=['POST'])
+def request_username():
+    data = request.get_json()
+    email = data.get('email')
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT username, customer_email FROM users")
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    username = None
+    for row in users:
+        db_username, encrypted_email = row
+        try:
+            decrypted_email = decrypt_sensitive_data(encrypted_email)
+            decrypted_email = decrypt_sensitive_data(encrypted_email)
+            if decrypted_email == email:
+                username = db_username
+                break
+        except Exception:
+            continue
+
+    if not username:
+        return jsonify({'error': 'No user found with this email'}), 404
+
+    subject = "Your Username Recovery Request"
+    body = f"Hi,\n\nYour username is: {username}\n\nIf you did not request this, please ignore this email.\n\nThanks,\nSupport Team"
+
+    try:
+        send_simple_email(email, subject, body)
+        return jsonify({'message': 'Username sent to your email'}), 200
     except Exception as e:
-        print("❌ ERROR in awaiting_bank_in:", str(e))
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({'error': f'Email failed: {str(e)}'}), 500
+
 
 @app.route('/api/request_username', methods=['POST'])
 def request_username():
