@@ -1376,7 +1376,8 @@ def account_bills():
 
         # Logic based on payment method
         if bill.get('payment_method') == 'Allinpay':
-            if bill.get('reserve_status') == 'Settled':
+            reserve_status = (bill.get('reserve_status') or '').lower()
+            if reserve_status in ['settled', 'reserve settled']:
                 # Reserve (15%)
                 total_reserve_ctn += round(ctn_fee * 0.15, 2)
                 total_reserve_service += round(service_fee * 0.15, 2)
@@ -1402,22 +1403,117 @@ def account_bills():
     conn.close()
     return jsonify({'bills': bills, 'summary': summary})
 
-@app.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
-def generate_payment_link(bill_id):
-    try:
-        # Simulate link (replace with real Allinpay/Stripe call later)
-        payment_link = f"https://pay.example.com/link/{bill_id}"
+# @app.route('/api/account_bills', methods=['GET'])
+# def account_bills():
+#     completed_at = request.args.get('completed_at')
+#     bl_number = request.args.get('bl_number')
 
-        conn = get_db_conn()
-        cur = conn.cursor()
-        cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (payment_link, bill_id))
-        conn.commit()
-        cur.close()
-        conn.close()
+#     conn = get_db_conn()
+#     cur = conn.cursor()
 
-        return jsonify({"payment_link": payment_link})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#     base_query = '''
+#         SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
+#                shipper, consignee, port_of_loading, port_of_discharge, bl_number,
+#                container_numbers, service_fee, ctn_fee, payment_link, receipt_filename,
+#                status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
+#                completed_at, customer_username, customer_invoice, customer_packing_list,
+#                payment_method, payment_status, reserve_status
+#         FROM bill_of_lading
+#         WHERE status = 'Paid and CTN Valid'
+#     '''
+
+#     where_clauses = []
+#     params = []
+
+#     if completed_at:
+#         start_date, end_date = get_hk_date_range(completed_at)
+#         where_clauses.append("completed_at >= %s AND completed_at < %s")
+#         params.extend([start_date, end_date])
+#     if bl_number:
+#         where_clauses.append("bl_number ILIKE %s")
+#         params.append(f'%{bl_number}%')
+
+#     if where_clauses:
+#         base_query += " AND " + " AND ".join(where_clauses)
+
+#     base_query += " ORDER BY id DESC"
+#     cur.execute(base_query, tuple(params))
+#     rows = cur.fetchall()
+#     columns = [desc[0] for desc in cur.description]
+
+#     bills = []
+#     valid_bills = []
+#     total_bank_ctn = 0
+#     total_bank_service = 0
+#     total_allinpay_85_ctn = 0
+#     total_allinpay_85_service = 0
+#     total_reserve_ctn = 0
+#     total_reserve_service = 0
+
+#     for row in rows:
+#         bill = dict(zip(columns, row))
+
+#         # Decrypt sensitive fields
+#         if bill.get('customer_email'):
+#             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
+#         if bill.get('customer_phone'):
+#             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+
+#         bills.append(bill)
+
+#         # Convert fee strings to float, skip if invalid
+#         try:
+#             ctn_fee = float(bill.get('ctn_fee'))
+#             service_fee = float(bill.get('service_fee'))
+#         except (TypeError, ValueError):
+#             continue  # skip this bill for summary
+
+#         valid_bills.append(bill)
+
+#         # Logic based on payment method
+#         if bill.get('payment_method') == 'Allinpay':
+#             if bill.get('reserve_status') == 'Settled':
+#                 # Reserve (15%)
+#                 total_reserve_ctn += round(ctn_fee * 0.15, 2)
+#                 total_reserve_service += round(service_fee * 0.15, 2)
+#             else:
+#                 # 85% part
+#                 total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
+#                 total_allinpay_85_service += round(service_fee * 0.85, 2)
+#         else:
+#             # Assume Bank Transfer
+#             total_bank_ctn += ctn_fee
+#             total_bank_service += service_fee
+
+#     summary = {
+#         'totalEntries': len(valid_bills),
+#         'totalCtnFee': round(sum(float(b.get('ctn_fee')) for b in valid_bills), 2),
+#         'totalServiceFee': round(sum(float(b.get('service_fee')) for b in valid_bills), 2),
+#         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
+#         'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
+#         'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
+#     }
+
+#     cur.close()
+#     conn.close()
+#     return jsonify({'bills': bills, 'summary': summary})
+
+# @app.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
+# def generate_payment_link(bill_id):
+#     try:
+#         # Simulate link (replace with real Allinpay/Stripe call later)
+#         payment_link = f"https://pay.example.com/link/{bill_id}"
+
+#         conn = get_db_conn()
+#         cur = conn.cursor()
+#         cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (payment_link, bill_id))
+#         conn.commit()
+#         cur.close()
+#         conn.close()
+
+#         return jsonify({"payment_link": payment_link})
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/bills/status/<status>', methods=['GET'])
