@@ -1318,6 +1318,7 @@ def account_bills():
     columns = [desc[0] for desc in cur.description]
 
     bills = []
+    valid_bills = []
     total_bank_ctn = 0
     total_bank_service = 0
     total_allinpay_85_ctn = 0
@@ -1336,9 +1337,14 @@ def account_bills():
 
         bills.append(bill)
 
-        # Convert fee strings to float
-        ctn_fee = float(bill.get('ctn_fee') or 0)
-        service_fee = float(bill.get('service_fee') or 0)
+        # Convert fee strings to float, skip if invalid
+        try:
+            ctn_fee = float(bill.get('ctn_fee'))
+            service_fee = float(bill.get('service_fee'))
+        except (TypeError, ValueError):
+            continue  # skip this bill for summary
+
+        valid_bills.append(bill)
 
         # Logic based on payment method
         if bill.get('payment_method') == 'Allinpay':
@@ -1356,9 +1362,9 @@ def account_bills():
             total_bank_service += service_fee
 
     summary = {
-        'totalEntries': len(bills),
-        'totalCtnFee': round(sum(float(b.get('ctn_fee') or 0) for b in bills), 2),
-        'totalServiceFee': round(sum(float(b.get('service_fee') or 0) for b in bills), 2),
+        'totalEntries': len(valid_bills),
+        'totalCtnFee': round(sum(float(b.get('ctn_fee')) for b in valid_bills), 2),
+        'totalServiceFee': round(sum(float(b.get('service_fee')) for b in valid_bills), 2),
         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
         'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
         'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
@@ -1418,31 +1424,35 @@ def get_bills_by_status(status):
 @jwt_required()
 def get_awaiting_bank_in_bills():
     try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 50))
+        offset = (page - 1) * page_size
         bl_number = request.args.get('bl_number', '').strip()
 
         conn = get_db_conn()
         cur = conn.cursor()
 
-        # Base conditions
+        # Base filters
         base_conditions = [
-            "status = 'Awaiting Bank In'",
+            "(status = 'Awaiting Bank In')",
             "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
         ]
-        additional_condition = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
-        params = []
-        where_sql = ""
+        # Additional reserve status condition
+        reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
-        # With B/L number search
         if bl_number:
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-            where_sql = f"({' OR '.join(where_clauses)}) AND {additional_condition}"
+            where_sql = f"({' OR '.join(where_clauses)}) AND {reserve_filter}"
             params = [f"%{bl_number}%"] * len(where_clauses)
         else:
-            where_sql = f"({' OR '.join(base_conditions)}) AND {additional_condition}"
+            where_sql = f"({' OR '.join(base_conditions)}) AND {reserve_filter}"
+            params = []
 
-        # Final query
-        query = f"""
+        # Add pagination params
+        data_params = list(params) + [page_size, offset]
+
+        data_query = f"""
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
                    payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
@@ -1451,37 +1461,59 @@ def get_awaiting_bank_in_bills():
             FROM bill_of_lading
             WHERE {where_sql}
             ORDER BY id DESC
+            LIMIT %s OFFSET %s
         """
 
-        print("EXECUTING SQL QUERY:", query)
-        print("WITH PARAMS:", params)
+        print("✅ DATA QUERY:\n", data_query)
+        print("✅ DATA PARAMS:", data_params)
 
-        cur.execute(query, tuple(params))
+        cur.execute(data_query, tuple(data_params))
         rows = cur.fetchall()
+
+        if not cur.description:
+            raise Exception("cur.description is None — no columns returned from DB.")
+
         columns = [desc[0] for desc in cur.description]
+        print(f"✅ Row Count: {len(rows)}; Column Count: {len(columns)}")
 
         bills = []
-        for row in rows:
-            bill_dict = dict(zip(columns, row))
-            if bill_dict.get('customer_email'):
-                bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-            if bill_dict.get('customer_phone'):
-                bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-            bills.append(bill_dict)
+        for idx, row in enumerate(rows):
+            try:
+                bill_dict = dict(zip(columns, row))
+                if bill_dict.get('customer_email'):
+                    bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+                if bill_dict.get('customer_phone'):
+                    bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+                bills.append(bill_dict)
+            except Exception as e:
+                print(f"❌ Error on row {idx}: {str(e)}")
+                print(f"Row Data: {row}")
+                print(f"Columns: {columns}")
+                continue
+
+        # Total count for pagination (same WHERE but no limit/offset)
+        count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
+        print("✅ COUNT QUERY:", count_query)
+        print("✅ COUNT PARAMS:", params)
+
+        cur.execute(count_query, tuple(params))
+        count_result = cur.fetchone()
+        total_count = count_result[0] if count_result and len(count_result) > 0 else 0
 
         cur.close()
         conn.close()
 
         return jsonify({
             'bills': bills,
-            'total': len(bills),
-            'page': 1,
-            'page_size': len(bills)
+            'total': total_count,
+            'page': page,
+            'page_size': page_size
         })
 
     except Exception as e:
         print("❌ ERROR in awaiting_bank_in:", str(e))
         return jsonify({'error': 'Internal server error'}), 500
+
 
 
 @app.route('/api/request_username', methods=['POST'])
