@@ -1420,6 +1420,7 @@ def get_bills_by_status(status):
     conn.close()  
     return jsonify(bills)
 
+
 @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
 @jwt_required()
 def get_awaiting_bank_in_bills():
@@ -1437,8 +1438,8 @@ def get_awaiting_bank_in_bills():
             "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
         ]
 
+        # Construct WHERE clause and params
         if bl_number:
-            # Apply B/L filter on each condition
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
             where_sql = " OR ".join(where_clauses)
             params = [f"%{bl_number}%"] * len(where_clauses)
@@ -1446,10 +1447,9 @@ def get_awaiting_bank_in_bills():
             where_sql = " OR ".join(base_conditions)
             params = []
 
-        # Add reserve exclusion
-        where_sql = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+        # Final SQL with reserve_status filtering
+        full_where_sql = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
-        # Data query
         data_query = f'''
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                    port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1457,19 +1457,21 @@ def get_awaiting_bank_in_bills():
                    receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
                    payment_method, payment_status, reserve_status
             FROM bill_of_lading
-            WHERE {where_sql}
+            WHERE {full_where_sql}
             ORDER BY id DESC
             LIMIT %s OFFSET %s
         '''
 
-        data_params = params + [page_size, offset]
+        data_params = list(params) + [page_size, offset]
+
         print("✅ DATA QUERY:\n", data_query)
         print("✅ DATA PARAMS:", data_params)
 
         cur.execute(data_query, tuple(data_params))
         rows = cur.fetchall()
-        columns = [desc[0] for desc in cur.description]
 
+        # ✅ Fix: guard against empty result
+        columns = [desc[0] for desc in cur.description] if cur.description else []
         bills = []
         for row in rows:
             bill_dict = dict(zip(columns, row))
@@ -1479,30 +1481,16 @@ def get_awaiting_bank_in_bills():
                 bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
             bills.append(bill_dict)
 
-        # Count query (same where logic)
-        count_conditions = [
-            "(status = 'Awaiting Bank In')",
-            "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
-        ]
-        if bl_number:
-            count_where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in count_conditions]
-            count_where_sql = " OR ".join(count_where_clauses)
-            count_params = [f"%{bl_number}%"] * len(count_where_clauses)
-        else:
-            count_where_sql = " OR ".join(count_conditions)
-            count_params = []
-
-        count_where_sql = f"({count_where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
-
+        # Count total (with same filters)
         count_query = f'''
             SELECT COUNT(*) FROM bill_of_lading
-            WHERE {count_where_sql}
+            WHERE {full_where_sql}
         '''
         print("✅ COUNT QUERY:\n", count_query)
-        print("✅ COUNT PARAMS:", count_params)
+        print("✅ COUNT PARAMS:", params)
 
-        cur.execute(count_query, tuple(count_params))
-        total_count = cur.fetchone()[0]
+        cur.execute(count_query, tuple(params))
+        total_count = cur.fetchone()[0] if cur.description else 0
 
         cur.close()
         conn.close()
@@ -1513,11 +1501,9 @@ def get_awaiting_bank_in_bills():
             'page': page,
             'page_size': page_size
         })
-    
     except Exception as e:
         print("❌ ERROR in awaiting_bank_in:", str(e))
         return jsonify({'error': 'Internal server error'}), 500
-
 
 @app.route('/api/request_username', methods=['POST'])
 def request_username():
