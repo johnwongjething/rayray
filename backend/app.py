@@ -1465,19 +1465,22 @@ def get_awaiting_bank_in_bills():
             "(status = 'Awaiting Bank In')",
             "(payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
         ]
+        final_where_clauses = []
 
         params = []
+
         if bl_number:
-            where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
-            where_sql = " OR ".join(where_clauses)
-            params = [f"%{bl_number}%"] * len(where_clauses)
+            for cond in base_conditions:
+                final_where_clauses.append(f"({cond} AND bl_number ILIKE %s)")
+                params.append(f"%{bl_number}%")
         else:
-            where_sql = " OR ".join(base_conditions)
+            final_where_clauses = base_conditions
 
-        # Final WHERE clause for query
-        final_where_sql = f"({where_sql}) AND (reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+        # Always exclude "Reserve Settled"
+        reserve_exclusion = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
+        final_where_sql = f"({' OR '.join(final_where_clauses)}) AND {reserve_exclusion}"
 
-        # Data query
+        # --- Data Query ---
         data_query = f"""
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
                 port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
@@ -1489,13 +1492,15 @@ def get_awaiting_bank_in_bills():
             ORDER BY id DESC
             LIMIT %s OFFSET %s
         """
+        data_params = list(params) + [page_size, offset]
 
-        data_params = params + [page_size, offset]
         print("DATA QUERY:", data_query)
         print("DATA PARAMS:", data_params)
+
         cur.execute(data_query, tuple(data_params))
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
+
         bills = []
         for row in rows:
             bill = dict(zip(columns, row))
@@ -1505,30 +1510,29 @@ def get_awaiting_bank_in_bills():
                 bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
             bills.append(bill)
 
-        # Count query
-        count_query = f"""
-            SELECT COUNT(*)
-            FROM bill_of_lading
-            WHERE {final_where_sql}
-        """
+        # --- Count Query ---
+        count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {final_where_sql}"
+        count_params = tuple(params)
+
         print("COUNT QUERY:", count_query)
-        print("COUNT PARAMS:", params)
-        cur.execute(count_query, tuple(params))
-        count_result = cur.fetchone()
-        total_count = count_result[0] if count_result else 0
+        print("COUNT PARAMS:", count_params)
+
+        cur.execute(count_query, count_params)
+        total = cur.fetchone()[0] if cur.rowcount else 0
 
         cur.close()
         conn.close()
 
         return jsonify({
-            'bills': bills,
-            'total': total_count,
-            'page': page,
-            'page_size': page_size
+            "bills": bills,
+            "total": total,
+            "page": page,
+            "page_size": page_size
         })
     except Exception as e:
         print("ERROR in awaiting_bank_in:", str(e))
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({"error": "Internal Server Error"}), 500
+
 
 
 
