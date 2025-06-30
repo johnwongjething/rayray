@@ -1420,12 +1420,12 @@ def get_bills_by_status(status):
     conn.close()  
     return jsonify(bills)
 
+
 @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
 @jwt_required()
 def get_awaiting_bank_in_bills():
     try:
         bl_number = request.args.get('bl_number', '').strip()
-
         conn = get_db_conn()
         cur = conn.cursor()
 
@@ -1435,21 +1435,16 @@ def get_awaiting_bank_in_bills():
         ]
         reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
 
-        params = []
         if bl_number:
             where_clauses = [f"({cond} AND bl_number ILIKE %s)" for cond in base_conditions]
             where_sql = f"({' OR '.join(where_clauses)}) AND {reserve_filter}"
             params = [f"%{bl_number}%"] * len(where_clauses)
         else:
             where_sql = f"({' OR '.join(base_conditions)}) AND {reserve_filter}"
+            params = []
 
         query = f'''
-            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee,
-                   port_of_loading, port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee,
-                   payment_link, receipt_filename, status, invoice_filename, unique_number, created_at,
-                   receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list,
-                   payment_method, payment_status, reserve_status
-            FROM bill_of_lading
+            SELECT id FROM bill_of_lading
             WHERE {where_sql}
             ORDER BY id DESC
         '''
@@ -1460,30 +1455,8 @@ def get_awaiting_bank_in_bills():
         else:
             cur.execute(query)
         rows = cur.fetchall()
-        columns = [desc[0] for desc in cur.description]
-        bills = []
-        for row in rows:
-            bill_dict = dict(zip(columns, row))
-            if bill_dict.get('customer_email'):
-                bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-            if bill_dict.get('customer_phone'):
-                bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-            bills.append(bill_dict)
-
-        # Count query (for total)
-        count_query = f"SELECT COUNT(*) FROM bill_of_lading WHERE {where_sql}"
-        print("COUNT QUERY:", count_query)
-        print("COUNT PARAMS:", params)
-        if params:
-            cur.execute(count_query, tuple(params))
-        else:
-            cur.execute(count_query)
-        total_count = cur.fetchone()[0]
-
-        return jsonify({
-            'bills': bills,
-            'total': total_count,
-        })
+        print("ROWS:", rows)
+        return jsonify({'count': len(rows)})
     except Exception as e:
         print("❌ ERROR in awaiting_bank_in:", str(e))
         return jsonify({'error': 'Internal server error'}), 500
@@ -1493,6 +1466,7 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
+
 
 
 @app.route('/api/request_username', methods=['POST'])
