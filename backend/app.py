@@ -1307,6 +1307,8 @@ def get_hk_date_range(search_date_str):
     next_date = search_date + timedelta(days=1)
     return search_date, next_date
 
+from dateutil import parser
+
 @app.route('/api/account_bills', methods=['GET'])
 def account_bills():
     completed_at = request.args.get('completed_at')
@@ -1354,6 +1356,7 @@ def account_bills():
     columns = [desc[0] for desc in cur.description]
 
     bills = []
+    valid_bills = []
     total_bank_ctn = 0
     total_bank_service = 0
     total_allinpay_85_ctn = 0
@@ -1370,21 +1373,25 @@ def account_bills():
         if bill.get('customer_phone'):
             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
 
+        bills.append(bill)
+
         try:
             ctn_fee = float(bill.get('ctn_fee') or 0)
             service_fee = float(bill.get('service_fee') or 0)
         except (TypeError, ValueError):
-            ctn_fee = 0
-            service_fee = 0
+            continue
 
-        # Default: show original values
-        bill['display_ctn_fee'] = ctn_fee
-        bill['display_service_fee'] = service_fee
+        valid_bills.append(bill)
 
-        # 85%/15% logic for Allinpay
+        # Debug print for each bill
+        print("DEBUG: bill id", bill.get('id'), "payment_method", bill.get('payment_method'),
+              "allinpay_85_received_at", bill.get('allinpay_85_received_at'),
+              "completed_at", bill.get('completed_at'),
+              "reserve_status", bill.get('reserve_status'))
+
         if bill.get('payment_method') == 'Allinpay':
+            # 85% part
             allinpay_85_dt = bill.get('allinpay_85_received_at')
-            is_85 = False
             if allinpay_85_dt:
                 if isinstance(allinpay_85_dt, str):
                     try:
@@ -1392,13 +1399,14 @@ def account_bills():
                     except Exception:
                         allinpay_85_dt = None
                 if allinpay_85_dt and allinpay_85_dt.tzinfo is None:
+                    # Assume UTC if no tzinfo
                     allinpay_85_dt = allinpay_85_dt.replace(tzinfo=pytz.UTC)
                 if completed_at and allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
-                    bill['display_ctn_fee'] = round(ctn_fee * 0.85, 2)
-                    bill['display_service_fee'] = round(service_fee * 0.85, 2)
-                    total_allinpay_85_ctn += bill['display_ctn_fee']
-                    total_allinpay_85_service += bill['display_service_fee']
-                    is_85 = True
+                    total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
+                    total_allinpay_85_service += round(service_fee * 0.85, 2)
+                    continue  # Don't double count as reserve
+
+            # 15% part (reserve): only if reserve is settled and completed_at is in range
             reserve_status = (bill.get('reserve_status') or '').lower()
             completed_dt = bill.get('completed_at')
             if completed_dt:
@@ -1409,13 +1417,11 @@ def account_bills():
                         completed_dt = None
                 if completed_dt and completed_dt.tzinfo is None:
                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
-            if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date and not is_85:
-                bill['display_ctn_fee'] = round(ctn_fee * 0.15, 2)
-                bill['display_service_fee'] = round(service_fee * 0.15, 2)
-                total_reserve_ctn += bill['display_ctn_fee']
-                total_reserve_service += bill['display_service_fee']
+            if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date:
+                total_reserve_ctn += round(ctn_fee * 0.15, 2)
+                total_reserve_service += round(service_fee * 0.15, 2)
         else:
-            # Bank Transfer: always show full amount, but only count in summary if in date range
+            # Bank Transfer: only if completed_at is in range
             completed_dt = bill.get('completed_at')
             if completed_dt:
                 if isinstance(completed_dt, str):
@@ -1429,10 +1435,8 @@ def account_bills():
                 total_bank_ctn += ctn_fee
                 total_bank_service += service_fee
 
-        bills.append(bill)
-
     summary = {
-        'totalEntries': len(bills),
+        'totalEntries': len(valid_bills),
         'totalCtnFee': round(total_bank_ctn + total_allinpay_85_ctn + total_reserve_ctn, 2),
         'totalServiceFee': round(total_bank_service + total_allinpay_85_service + total_reserve_service, 2),
         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
@@ -1444,8 +1448,6 @@ def account_bills():
     conn.close()
 
     return jsonify({'bills': bills, 'summary': summary})
-
-
 
 # @app.route('/api/account_bills', methods=['GET'])
 # def account_bills():
