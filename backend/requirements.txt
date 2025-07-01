@@ -11,3 +11,4 @@ gunicorn==21.2.0
 Pillow==10.4.0
 reportlab==4.1.0
 pytz==2024.1 
+python-dateutil==2.8.2
