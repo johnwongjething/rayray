@@ -1354,7 +1354,6 @@ def account_bills():
     columns = [desc[0] for desc in cur.description]
 
     bills = []
-    valid_bills = []
     total_bank_ctn = 0
     total_bank_service = 0
     total_allinpay_85_ctn = 0
@@ -1382,14 +1381,8 @@ def account_bills():
         bill['display_ctn_fee'] = ctn_fee
         bill['display_service_fee'] = service_fee
 
-        # Debug print for each bill
-        print("DEBUG: bill id", bill.get('id'), "payment_method", bill.get('payment_method'),
-              "allinpay_85_received_at", bill.get('allinpay_85_received_at'),
-              "completed_at", bill.get('completed_at'),
-              "reserve_status", bill.get('reserve_status'))
-
+        # 85%/15% logic for Allinpay
         if bill.get('payment_method') == 'Allinpay':
-            # 85% part
             allinpay_85_dt = bill.get('allinpay_85_received_at')
             is_85 = False
             if allinpay_85_dt:
@@ -1401,16 +1394,11 @@ def account_bills():
                 if allinpay_85_dt and allinpay_85_dt.tzinfo is None:
                     allinpay_85_dt = allinpay_85_dt.replace(tzinfo=pytz.UTC)
                 if completed_at and allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
-                    total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
-                    total_allinpay_85_service += round(service_fee * 0.85, 2)
                     bill['display_ctn_fee'] = round(ctn_fee * 0.85, 2)
                     bill['display_service_fee'] = round(service_fee * 0.85, 2)
+                    total_allinpay_85_ctn += bill['display_ctn_fee']
+                    total_allinpay_85_service += bill['display_service_fee']
                     is_85 = True
-                    bills.append(bill)
-                    valid_bills.append(bill)
-                    continue  # Don't double count as reserve
-
-            # 15% part (reserve): only if reserve is settled and completed_at is in range
             reserve_status = (bill.get('reserve_status') or '').lower()
             completed_dt = bill.get('completed_at')
             if completed_dt:
@@ -1422,15 +1410,12 @@ def account_bills():
                 if completed_dt and completed_dt.tzinfo is None:
                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
             if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date and not is_85:
-                total_reserve_ctn += round(ctn_fee * 0.15, 2)
-                total_reserve_service += round(service_fee * 0.15, 2)
                 bill['display_ctn_fee'] = round(ctn_fee * 0.15, 2)
                 bill['display_service_fee'] = round(service_fee * 0.15, 2)
-                bills.append(bill)
-                valid_bills.append(bill)
-                continue
+                total_reserve_ctn += bill['display_ctn_fee']
+                total_reserve_service += bill['display_service_fee']
         else:
-            # Bank Transfer: only if completed_at is in range
+            # Bank Transfer: always show full amount, but only count in summary if in date range
             completed_dt = bill.get('completed_at')
             if completed_dt:
                 if isinstance(completed_dt, str):
@@ -1443,12 +1428,11 @@ def account_bills():
             if completed_at and completed_dt and start_date <= completed_dt < end_date:
                 total_bank_ctn += ctn_fee
                 total_bank_service += service_fee
-                bills.append(bill)
-                valid_bills.append(bill)
-                continue
+
+        bills.append(bill)
 
     summary = {
-        'totalEntries': len(valid_bills),
+        'totalEntries': len(bills),
         'totalCtnFee': round(total_bank_ctn + total_allinpay_85_ctn + total_reserve_ctn, 2),
         'totalServiceFee': round(total_bank_service + total_allinpay_85_service + total_reserve_service, 2),
         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
@@ -1460,6 +1444,8 @@ def account_bills():
     conn.close()
 
     return jsonify({'bills': bills, 'summary': summary})
+
+
 
 # @app.route('/api/account_bills', methods=['GET'])
 # def account_bills():
