@@ -167,7 +167,9 @@ function StaffStats({ t = x => x }) {
                     <TableCell>{t('id')}</TableCell>
                     <TableCell>{t('customerName')}</TableCell>
                     <TableCell>{t('blNumber')}</TableCell>
-                    <TableCell>{t('invoiceAmount')}</TableCell>
+                    <TableCell>{t('ctnFee')}</TableCell>
+                    <TableCell>{t('serviceFee')}</TableCell>
+                    <TableCell>{t('total')}</TableCell>
                     <TableCell>{t('invoicePDF')}</TableCell>
                   </TableRow>
                 </TableHead>
@@ -177,7 +179,14 @@ function StaffStats({ t = x => x }) {
                       <TableCell>{row.id}</TableCell>
                       <TableCell>{row.customer_name}</TableCell>
                       <TableCell>{row.bl_number}</TableCell>
+                      <TableCell>${row.ctn_fee ? Number(row.ctn_fee).toFixed(2) : '0.00'}</TableCell>
                       <TableCell>${row.service_fee ? Number(row.service_fee).toFixed(2) : '0.00'}</TableCell>
+                          <TableCell>
+                            ${(
+                              (Number(row.ctn_fee) || 0) +
+                              (Number(row.service_fee) || 0)
+                             ).toFixed(2)}
+                            </TableCell>
                       <TableCell>
                         {row.invoice_filename ? (
                           <Link href={`${API_BASE_URL}/uploads/${row.invoice_filename}`} target="_blank" rel="noopener noreferrer">
