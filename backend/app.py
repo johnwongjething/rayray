@@ -1023,7 +1023,7 @@ def stats_summary():
     cur.execute("SELECT COALESCE(SUM(service_fee), 0) FROM bill_of_lading WHERE status = 'Awaiting Bank In'")
     awaiting_payment = float(cur.fetchone()[0] or 0)
 
-    cur.execute("SELECT COALESCE(SUM(reserve_amount), 0) FROM bill_of_lading WHERE payment_status = 'Unsettled'")
+    cur.execute("SELECT COALESCE(SUM(reserve_amount), 0) FROM bill_of_lading WHERE LOWER(TRIM(reserve_status)) = 'unsettled'")
     unsettled_reserve = float(cur.fetchone()[0] or 0)
 
     total_payment_outstanding = awaiting_payment + unsettled_reserve
@@ -1086,7 +1086,7 @@ def outstanding_bills():
         SELECT id, customer_name, bl_number, service_fee, invoice_filename
         FROM bill_of_lading
         WHERE status = 'Awaiting Bank In'
-           OR (payment_method = 'Allinpay' AND payment_status = 'Unsettled')
+           OR (payment_method = 'Allinpay' AND reserve_status = 'Unsettled')
     """)
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
