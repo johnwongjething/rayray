@@ -22,15 +22,66 @@ const AccountPage = ({ t = x => x }) => {
   });
   const navigate = useNavigate();
 
-  const columns = [
-    { title: t('blNumber'), dataIndex: 'bl_number', key: 'bl_number' },
-    { title: t('ctnFee'), dataIndex: 'ctn_fee', key: 'ctn_fee', render: v => `$${v}` },
-    { title: t('serviceFee'), dataIndex: 'service_fee', key: 'service_fee', render: v => `$${v}` },
-    { title: t('total'), key: 'total', render: r => `$${parseFloat(r.ctn_fee) + parseFloat(r.service_fee)}` },
-    { title: t('customerName'), dataIndex: 'customer_name', key: 'customer_name' },
-    { title: t('paymentType'), dataIndex: 'payment_method', key: 'payment_method' },
-    { title: t('date'), dataIndex: 'date', key: 'date', render: v => v ? new Date(v).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : '' },
-  ];
+  // Example for Ant Design Table columns
+const columns = [
+  {
+    title: 'BL Number',
+    dataIndex: 'bl_number',
+    key: 'bl_number',
+  },
+  {
+    title: 'ctnFee',
+    dataIndex: 'display_ctn_fee', // <-- use this!
+    key: 'display_ctn_fee',
+    render: (value) => `$${value}`,
+  },
+  {
+    title: 'Service Fee',
+    dataIndex: 'display_service_fee', // <-- use this!
+    key: 'display_service_fee',
+    render: (value) => `$${value}`,
+  },
+  {
+    title: 'total',
+    key: 'total',
+    render: (_, record) =>
+      `$${(Number(record.display_ctn_fee) + Number(record.display_service_fee)).toFixed(2)}`,
+  },
+  {
+    title: 'Customer Name',
+    dataIndex: 'customer_name',
+    key: 'customer_name',
+  },
+  {
+  title: 'paymentType',
+  dataIndex: 'payment_method',
+  key: 'payment_method',
+  render: (value) => value === 'Allinpay' ? 'Allinpay' : 'Bank Transfer',
+},
+
+  // {
+  //   title: 'paymentType',
+  //   dataIndex: 'payment_method',
+  //   key: 'payment_method',
+  // },
+  {
+    title: 'date',
+    dataIndex: 'completed_at',
+    key: 'completed_at',
+    render: (value) => value ? new Date(value).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : '',
+  },
+];
+
+
+  // const columns = [
+  //   { title: t('blNumber'), dataIndex: 'bl_number', key: 'bl_number' },
+  //   { title: t('ctnFee'), dataIndex: 'ctn_fee', key: 'ctn_fee', render: v => `$${v}` },
+  //   { title: t('serviceFee'), dataIndex: 'service_fee', key: 'service_fee', render: v => `$${v}` },
+  //   { title: t('total'), key: 'total', render: r => `$${parseFloat(r.ctn_fee) + parseFloat(r.service_fee)}` },
+  //   { title: t('customerName'), dataIndex: 'customer_name', key: 'customer_name' },
+  //   { title: t('paymentType'), dataIndex: 'payment_method', key: 'payment_method' },
+  //   { title: t('date'), dataIndex: 'date', key: 'date', render: v => v ? new Date(v).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : '' },
+  // ];
 
   const fetchAccountBills = async (searchDateString = null) => {
     setLoading(true);
@@ -97,15 +148,27 @@ const AccountPage = ({ t = x => x }) => {
     doc.text(`Allinpay Reserve: $${summary.reserveTotal}`, 20, 85);
 
     const tableColumn = ['BL Number', 'ctnFee', 'Service Fee', 'total', 'Customer Name', 'Payment Type', 'date'];
+    
     const tableRows = bills.map(bill => [
-      bill.bl_number || '',
-      `$${bill.ctn_fee || 0}`,
-      `$${bill.service_fee || 0}`,
-      `$${parseFloat(bill.ctn_fee || 0) + parseFloat(bill.service_fee || 0)}`,
-      bill.customer_name || '',
-      bill.payment_type || '',
-      bill.date ? new Date(bill.date).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : ''
-    ]);
+  bill.bl_number || '',
+  `$${bill.display_ctn_fee || 0}`,
+  `$${bill.display_service_fee || 0}`,
+  `$${(parseFloat(bill.display_ctn_fee || 0) + parseFloat(bill.display_service_fee || 0)).toFixed(2)}`,
+  bill.customer_name || '',
+  bill.payment_method || '',
+  bill.completed_at ? new Date(bill.completed_at).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : ''
+]);
+    
+    
+    // const tableRows = bills.map(bill => [
+    //   bill.bl_number || '',
+    //   `$${bill.ctn_fee || 0}`,
+    //   `$${bill.service_fee || 0}`,
+    //   `$${parseFloat(bill.ctn_fee || 0) + parseFloat(bill.service_fee || 0)}`,
+    //   bill.customer_name || '',
+    //   bill.payment_type || '',
+    //   bill.date ? new Date(bill.date).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : ''
+    // ]);
 
     doc.autoTable({
       head: [tableColumn],
