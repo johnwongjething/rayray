@@ -1307,7 +1307,6 @@ def get_hk_date_range(search_date_str):
     next_date = search_date + timedelta(days=1)
     return search_date, next_date
 
-
 @app.route('/api/account_bills', methods=['GET'])
 def account_bills():
     completed_at = request.args.get('completed_at')
@@ -1334,9 +1333,6 @@ def account_bills():
 
     if completed_at:
         start_date, end_date = get_hk_date_range(completed_at)
-        # For Allinpay 85%: filter by allinpay_85_received_at
-        # For Allinpay 15% (reserve): filter by completed_at AND payment_method = 'Allinpay'
-        # For Bank Transfer: filter by completed_at AND payment_method != 'Allinpay'
         where_clauses.append(
             "((payment_method = 'Allinpay' AND allinpay_85_received_at >= %s AND allinpay_85_received_at < %s) "
             "OR (payment_method = 'Allinpay' AND completed_at >= %s AND completed_at < %s) "
@@ -1384,47 +1380,45 @@ def account_bills():
 
         valid_bills.append(bill)
 
-        # Allinpay 85%: show if allinpay_85_received_at is in range
+        # Decide which bucket this row belongs to (only one per row)
         if bill.get('payment_method') == 'Allinpay':
-            # 85% part
-            if completed_at and bill.get('allinpay_85_received_at'):
-                allinpay_85_date = bill.get('allinpay_85_received_at')
-                if allinpay_85_date:
-                    # Compare date range
-                    allinpay_85_dt = bill['allinpay_85_received_at']
-                    if isinstance(allinpay_85_dt, str):
-                        try:
-                            allinpay_85_dt = datetime.fromisoformat(allinpay_85_dt)
-                        except Exception:
-                            allinpay_85_dt = None
-                    if allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
-                        total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
-                        total_allinpay_85_service += round(service_fee * 0.85, 2)
-            # 15% part (reserve): only if reserve is settled and completed_at is in range
-            if completed_at and (bill.get('reserve_status') or '').lower() in ['settled', 'reserve settled']:
-                completed_dt = bill.get('completed_at')
-                if completed_dt:
-                    if isinstance(completed_dt, str):
-                        try:
-                            completed_dt = datetime.fromisoformat(completed_dt)
-                        except Exception:
-                            completed_dt = None
-                    if completed_dt and start_date <= completed_dt < end_date:
-                        total_reserve_ctn += round(ctn_fee * 0.15, 2)
-                        total_reserve_service += round(service_fee * 0.15, 2)
+            # If this row matched by allinpay_85_received_at, count as 85%
+            allinpay_85_dt = bill.get('allinpay_85_received_at')
+            if allinpay_85_dt:
+                if isinstance(allinpay_85_dt, str):
+                    try:
+                        allinpay_85_dt = datetime.fromisoformat(allinpay_85_dt)
+                    except Exception:
+                        allinpay_85_dt = None
+                if completed_at and allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
+                    total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
+                    total_allinpay_85_service += round(service_fee * 0.85, 2)
+                    continue  # Don't double count as reserve
+
+            # If this row matched by completed_at and reserve is settled, count as 15%
+            reserve_status = (bill.get('reserve_status') or '').lower()
+            completed_dt = bill.get('completed_at')
+            if reserve_status in ['settled', 'reserve settled'] and completed_dt:
+                if isinstance(completed_dt, str):
+                    try:
+                        completed_dt = datetime.fromisoformat(completed_dt)
+                    except Exception:
+                        completed_dt = None
+                if completed_at and completed_dt and start_date <= completed_dt < end_date:
+                    total_reserve_ctn += round(ctn_fee * 0.15, 2)
+                    total_reserve_service += round(service_fee * 0.15, 2)
         else:
             # Bank Transfer: only if completed_at is in range
-            if completed_at:
-                completed_dt = bill.get('completed_at')
-                if completed_dt:
-                    if isinstance(completed_dt, str):
-                        try:
-                            completed_dt = datetime.fromisoformat(completed_dt)
-                        except Exception:
-                            completed_dt = None
-                    if completed_dt and start_date <= completed_dt < end_date:
-                        total_bank_ctn += ctn_fee
-                        total_bank_service += service_fee
+            completed_dt = bill.get('completed_at')
+            if completed_dt:
+                if isinstance(completed_dt, str):
+                    try:
+                        completed_dt = datetime.fromisoformat(completed_dt)
+                    except Exception:
+                        completed_dt = None
+                if completed_at and completed_dt and start_date <= completed_dt < end_date:
+                    total_bank_ctn += ctn_fee
+                    total_bank_service += service_fee
 
     summary = {
         'totalEntries': len(valid_bills),
@@ -1439,7 +1433,6 @@ def account_bills():
     conn.close()
 
     return jsonify({'bills': bills, 'summary': summary})
-
 
 # @app.route('/api/account_bills', methods=['GET'])
 # def account_bills():
