@@ -995,7 +995,11 @@ def stats_summary():
     completed_bills = cur.fetchone()[0]
 
     # Pending = Pending
-    cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status = 'Pending'")
+    cur.execute("""
+    SELECT COUNT(*) 
+    FROM bill_of_lading 
+    WHERE status IN ('Pending', 'Awaiting Bank In')
+""")
     pending_bills = cur.fetchone()[0]
 
     # ✅ Total invoice amount = sum(ctn_fee + service_fee)
