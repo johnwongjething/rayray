@@ -1449,6 +1449,7 @@ def account_bills():
 
     return jsonify({'bills': bills, 'summary': summary})
 
+
 # @app.route('/api/account_bills', methods=['GET'])
 # def account_bills():
 #     completed_at = request.args.get('completed_at')
