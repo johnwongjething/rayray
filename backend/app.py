@@ -1089,13 +1089,12 @@ def outstanding_bills():
         return jsonify({'error': 'Unauthorized'}), 403
     conn = get_db_conn()
     cur = conn.cursor()
-
     cur.execute("""
-        SELECT id, customer_name, bl_number, service_fee, invoice_filename
-        FROM bill_of_lading
-        WHERE status = 'Awaiting Bank In'
-           OR (payment_method = 'Allinpay' AND reserve_status = 'Unsettled')
-    """)
+    SELECT id, customer_name, bl_number, ctn_fee, service_fee, reserve_amount, invoice_filename
+    FROM bill_of_lading
+    WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
+       OR (payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled')
+""")
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
     bills = [dict(zip(columns, row)) for row in rows]
