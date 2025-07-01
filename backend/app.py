@@ -975,6 +975,7 @@ def contact():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/api/stats/summary')
 @jwt_required()
 def stats_summary():
@@ -989,44 +990,40 @@ def stats_summary():
     cur.execute("SELECT COUNT(*) FROM bill_of_lading")
     total_bills = cur.fetchone()[0]
 
-    # Completed bills = Paid and CTN Valid
+    # Completed = Paid and CTN Valid
     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status = 'Paid and CTN Valid'")
     completed_bills = cur.fetchone()[0]
 
-    # Pending bills = Pending
+    # Pending = Pending
     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status = 'Pending'")
     pending_bills = cur.fetchone()[0]
 
-    # Total invoice amount = sum(service_fee)
-    cur.execute("SELECT COALESCE(SUM(service_fee), 0) FROM bill_of_lading")
+    # ✅ Total invoice amount = sum(ctn_fee + service_fee)
+    cur.execute("SELECT COALESCE(SUM(ctn_fee + service_fee), 0) FROM bill_of_lading")
     total_invoice_amount = float(cur.fetchone()[0] or 0)
 
-    # --- Total Payment Received ---
+    # ✅ Total Payment Received (Bank + Allinpay 100% + Allinpay 85%)
     cur.execute("""
-        SELECT 
-            COALESCE(SUM(
-                CASE 
-                    WHEN payment_method != 'Allinpay' AND status = 'Paid and CTN Valid' THEN ctn_fee + service_fee
-                    WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Reserve Settled' THEN ctn_fee + service_fee
-                    WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Unsettled' THEN ctn_fee * 0.85 + service_fee
-                    ELSE 0
-                END
-            ), 0)
+        SELECT COALESCE(SUM(
+            CASE 
+                WHEN payment_method != 'Allinpay' AND status = 'Paid and CTN Valid'
+                    THEN ctn_fee + service_fee
+                WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Reserve Settled'
+                    THEN ctn_fee + service_fee
+                WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Unsettled'
+                    THEN (ctn_fee * 0.85) + (service_fee * 0.85)
+                ELSE 0
+            END
+        ), 0)
         FROM bill_of_lading
     """)
     total_payment_received = float(cur.fetchone()[0] or 0)
 
-    # --- Total Payment Outstanding ---
-    # 1. Awaiting Bank In → full service_fee
+    # ✅ Total Payment Outstanding = Awaiting Bank In + reserve_amount (unsettled)
     cur.execute("SELECT COALESCE(SUM(service_fee), 0) FROM bill_of_lading WHERE status = 'Awaiting Bank In'")
     awaiting_payment = float(cur.fetchone()[0] or 0)
 
-    # 2. Allinpay reserve (Unsettled) → reserve 15% of ctn_fee
-    cur.execute("""
-        SELECT COALESCE(SUM(ctn_fee * 0.15), 0)
-        FROM bill_of_lading
-        WHERE payment_method = 'Allinpay' AND payment_status = 'Unsettled'
-    """)
+    cur.execute("SELECT COALESCE(SUM(reserve_amount), 0) FROM bill_of_lading WHERE payment_status = 'Unsettled'")
     unsettled_reserve = float(cur.fetchone()[0] or 0)
 
     total_payment_outstanding = awaiting_payment + unsettled_reserve
@@ -1042,6 +1039,7 @@ def stats_summary():
         'total_payment_received': round(total_payment_received, 2),
         'total_payment_outstanding': round(total_payment_outstanding, 2)
     })
+
 
 
 # @app.route('/api/stats/summary')
