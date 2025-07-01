@@ -28,7 +28,7 @@ const AccountPage = ({ t = x => x }) => {
     { title: t('serviceFee'), dataIndex: 'service_fee', key: 'service_fee', render: v => `$${v}` },
     { title: t('total'), key: 'total', render: r => `$${parseFloat(r.ctn_fee) + parseFloat(r.service_fee)}` },
     { title: t('customerName'), dataIndex: 'customer_name', key: 'customer_name' },
-    { title: t('paymentType'), dataIndex: 'payment_type', key: 'payment_type' },
+    { title: t('paymentType'), dataIndex: 'payment_method', key: 'payment_method' },
     { title: t('date'), dataIndex: 'date', key: 'date', render: v => v ? new Date(v).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : '' },
   ];
 
