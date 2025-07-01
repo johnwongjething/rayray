@@ -757,152 +757,6 @@ def settle_reserve(bill_id):
         cur.close()
         conn.close()   
 
-# @app.route('/api/bill/<int:bill_id>/service_fee', methods=['POST'])
-# @cross_origin()
-# @jwt_required()
-# def update_service_fee(bill_id):
-#     try:
-    #     # Get user role from JWT
-    #     user = get_jwt_identity()
-    #     user = json.loads(user) if isinstance(user, str) else user
-    #     print(f"User attempting update: {user}")
-    #     if user.get('role') not in ['staff', 'admin']:
-    #         return jsonify({'error': 'Unauthorized'}), 403
-
-    #     data = request.get_json()
-    #     print(f"Received update data: {data}")
-    #     if not data:
-    #         return jsonify({'error': 'No data provided'}), 400
-
-    #     service_fee = data.get('service_fee')
-    #     ctn_fee = data.get('ctn_fee')
-    #     payment_link = data.get('payment_link')
-    #     unique_number = data.get('unique_number')
-        
-    #     if not all([service_fee, ctn_fee, payment_link, unique_number]):
-    #         return jsonify({'error': 'Missing required fields'}), 400
-
-    #     try:
-    #         # Convert fees to float
-    #         service_fee = float(service_fee)
-    #         ctn_fee = float(ctn_fee)
-    #         print(f"Converted fees: service_fee={service_fee}, ctn_fee={ctn_fee}")
-    #     except ValueError as e:
-    #         print(f"ValueError converting fees: {str(e)}")
-    #         return jsonify({'error': 'Invalid fee values'}), 400
-
-    #     # Get database connection
-    #     try:
-    #         conn = get_db_conn()
-    #         if not conn:
-    #             print("Database connection failed")
-    #             return jsonify({'error': 'Database connection failed'}), 500
-    #         print("Database connection successful")
-    #     except Exception as e:
-    #         print(f"Error getting database connection: {str(e)}")
-    #         return jsonify({'error': f'Database connection error: {str(e)}'}), 500
-
-    #     try:
-    #         cur = conn.cursor()
-    #         print("Cursor created successfully")
-    #     except Exception as e:
-    #         print(f"Error creating cursor: {str(e)}")
-    #         return jsonify({'error': f'Cursor creation error: {str(e)}'}), 500
-
-    #     try:
-    #         print(f"Checking if bill {bill_id} exists...")
-    #         cur.execute("SELECT id FROM bill_of_lading WHERE id=%s", (bill_id,))
-    #         bill_exists = cur.fetchone()
-    #         print(f"Bill exists check result: {bill_exists}")
-    #         if not bill_exists:
-    #             return jsonify({'error': 'Bill not found'}), 404
-
-    #         print("Building update query...")
-    #         # Update fields
-    #         update_fields = []
-    #         update_values = []
-    #         if service_fee is not None:
-    #             update_fields.append('service_fee=%s')
-    #             update_values.append(service_fee)
-    #         if ctn_fee is not None:
-    #             update_fields.append('ctn_fee=%s')
-    #             update_values.append(ctn_fee)
-    #         if payment_link is not None:
-    #             update_fields.append('payment_link=%s')
-    #             update_values.append(payment_link)
-    #         if unique_number:
-    #             update_fields.append('unique_number=%s')
-    #             update_values.append(unique_number)
-    #         update_values.append(bill_id)
-
-    #         update_query = f"""
-    #             UPDATE bill_of_lading
-    #             SET {', '.join(update_fields)}
-    #             WHERE id=%s
-    #         """
-    #         print(f"Update query: {update_query}")
-    #         print(f"Update values: {update_values}")
-            
-    #         try:
-    #             cur.execute(update_query, tuple(update_values))
-    #             print("Update executed successfully")
-    #             conn.commit()
-    #             print("Transaction committed")
-    #         except Exception as e:
-    #             print(f"Error executing update: {str(e)}")
-    #             conn.rollback()
-    #             raise
-
-    #         print("Fetching updated bill info...")
-    #         cur.execute("SELECT * FROM bill_of_lading WHERE id=%s", (bill_id,))
-    #         bill_row = cur.fetchone()
-    #         print(f"Updated bill row: {bill_row}")
-    #         if not bill_row:
-    #             return jsonify({'error': 'Failed to update bill'}), 500
-
-    #         columns = [desc[0] for desc in cur.description]
-    #         bill = dict(zip(columns, bill_row))
-    #         print(f"Updated bill data: {bill}")
-
-    #         # Decrypt customer data
-    #         customer = {
-    #             'name': bill['customer_name'],
-    #             'email': decrypt_sensitive_data(bill['customer_email']) if bill['customer_email'] is not None else '',
-    #             'phone': decrypt_sensitive_data(bill['customer_phone']) if bill['customer_phone'] is not None else ''
-    #         }
-    #         print(f"Customer info: {customer}")
-
-    #         print("Generating invoice PDF...")
-    #         try:
-    #             invoice_filename = generate_invoice_pdf(customer, bill, service_fee, ctn_fee, payment_link)
-    #             invoice_path = os.path.join('uploads', invoice_filename)
-    #             print(f"Invoice generated: {invoice_path}")
-
-    #             # Check if file exists
-    #             if not os.path.exists(invoice_path):
-    #                 print(f"Error: Invoice file not found at {invoice_path}")
-    #                 return jsonify({'error': 'Failed to generate invoice PDF'}), 500
-
-    #             # Only send email if explicitly requested (not for staff/admin updates)
-    #             # For now, we'll skip automatic email sending
-    #             print("Invoice generated successfully, email sending disabled for staff/admin updates")
-                
-    #         except Exception as e:
-    #             print(f"Error during invoice generation: {str(e)}")
-    #             return jsonify({'error': f'Failed to generate invoice: {str(e)}'}), 500
-
-    #         return jsonify({'message': 'Service fee, CTN fee, and payment link updated successfully'}), 200
-
-    #     except Exception as db_error:
-    #         conn.rollback()
-    #         return jsonify({'error': f'Database error: {str(db_error)}'}), 500
-    #     finally:
-    #         cur.close()
-    #         conn.close()
-
-    # except Exception as e:
-    #     print(f"Error in update_service_fee: {str(e)}")
-    #     return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 @app.route('/api/bill/<int:bill_id>/complete', methods=['POST'])
 def complete_bill(bill_id):
@@ -932,20 +786,6 @@ def complete_bill(bill_id):
     return jsonify({'message': 'Bill marked as completed'})
 
 
-# @app.route('/api/bill/<int:bill_id>/complete', methods=['POST'])
-# def complete_bill(bill_id):
-#     conn = get_db_conn()
-#     cur = conn.cursor()
-#     hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
-#     cur.execute("""
-#         UPDATE bill_of_lading
-#         SET status=%s, completed_at=%s
-#         WHERE id=%s
-#     """, ('Paid and CTN Valid', hk_now, bill_id))
-#     conn.commit()
-#     cur.close()
-#     conn.close()
-#     return jsonify({'message': 'Bill marked as completed'})
 
 @app.route('/api/search_bills', methods=['POST'])
 @jwt_required()
@@ -1141,30 +981,99 @@ def stats_summary():
     user = json.loads(get_jwt_identity())
     if user['role'] not in ['staff', 'admin']:
         return jsonify({'error': 'Unauthorized'}), 403
+
     conn = get_db_conn()
     cur = conn.cursor()
+
+    # Total bills
     cur.execute("SELECT COUNT(*) FROM bill_of_lading")
-    total = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status='Completed'")
-    completed = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status!='Completed'")
-    pending = cur.fetchone()[0]
-    cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading")
+    total_bills = cur.fetchone()[0]
+
+    # Completed bills = Paid and CTN Valid
+    cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status = 'Paid and CTN Valid'")
+    completed_bills = cur.fetchone()[0]
+
+    # Pending bills = Pending
+    cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status = 'Pending'")
+    pending_bills = cur.fetchone()[0]
+
+    # Total invoice amount = sum(service_fee)
+    cur.execute("SELECT COALESCE(SUM(service_fee), 0) FROM bill_of_lading")
     total_invoice_amount = float(cur.fetchone()[0] or 0)
-    cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading WHERE status='Completed'")
+
+    # --- Total Payment Received ---
+    cur.execute("""
+        SELECT 
+            COALESCE(SUM(
+                CASE 
+                    WHEN payment_method != 'Allinpay' AND status = 'Paid and CTN Valid' THEN ctn_fee + service_fee
+                    WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Reserve Settled' THEN ctn_fee + service_fee
+                    WHEN payment_method = 'Allinpay' AND status = 'Paid and CTN Valid' AND reserve_status = 'Unsettled' THEN ctn_fee * 0.85 + service_fee
+                    ELSE 0
+                END
+            ), 0)
+        FROM bill_of_lading
+    """)
     total_payment_received = float(cur.fetchone()[0] or 0)
-    cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading WHERE status!='Completed'")
-    total_payment_outstanding = float(cur.fetchone()[0] or 0)
+
+    # --- Total Payment Outstanding ---
+    # 1. Awaiting Bank In → full service_fee
+    cur.execute("SELECT COALESCE(SUM(service_fee), 0) FROM bill_of_lading WHERE status = 'Awaiting Bank In'")
+    awaiting_payment = float(cur.fetchone()[0] or 0)
+
+    # 2. Allinpay reserve (Unsettled) → reserve 15% of ctn_fee
+    cur.execute("""
+        SELECT COALESCE(SUM(ctn_fee * 0.15), 0)
+        FROM bill_of_lading
+        WHERE payment_method = 'Allinpay' AND payment_status = 'Unsettled'
+    """)
+    unsettled_reserve = float(cur.fetchone()[0] or 0)
+
+    total_payment_outstanding = awaiting_payment + unsettled_reserve
+
     cur.close()
     conn.close()
+
     return jsonify({
-        'total_bills': total,
-        'completed_bills': completed,
-        'pending_bills': pending,
-        'total_invoice_amount': total_invoice_amount,
-        'total_payment_received': total_payment_received,
-        'total_payment_outstanding': total_payment_outstanding
+        'total_bills': total_bills,
+        'completed_bills': completed_bills,
+        'pending_bills': pending_bills,
+        'total_invoice_amount': round(total_invoice_amount, 2),
+        'total_payment_received': round(total_payment_received, 2),
+        'total_payment_outstanding': round(total_payment_outstanding, 2)
     })
+
+
+# @app.route('/api/stats/summary')
+# @jwt_required()
+# def stats_summary():
+#     user = json.loads(get_jwt_identity())
+#     if user['role'] not in ['staff', 'admin']:
+#         return jsonify({'error': 'Unauthorized'}), 403
+#     conn = get_db_conn()
+#     cur = conn.cursor()
+#     cur.execute("SELECT COUNT(*) FROM bill_of_lading")
+#     total = cur.fetchone()[0]
+#     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status='Completed'")
+#     completed = cur.fetchone()[0]
+#     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status!='Completed'")
+#     pending = cur.fetchone()[0]
+#     cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading")
+#     total_invoice_amount = float(cur.fetchone()[0] or 0)
+#     cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading WHERE status='Completed'")
+#     total_payment_received = float(cur.fetchone()[0] or 0)
+#     cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading WHERE status!='Completed'")
+#     total_payment_outstanding = float(cur.fetchone()[0] or 0)
+#     cur.close()
+#     conn.close()
+#     return jsonify({
+#         'total_bills': total,
+#         'completed_bills': completed,
+#         'pending_bills': pending,
+#         'total_invoice_amount': total_invoice_amount,
+#         'total_payment_received': total_payment_received,
+#         'total_payment_outstanding': total_payment_outstanding
+#     })
 
 @app.route('/api/stats/outstanding_bills')
 @jwt_required()
@@ -1174,13 +1083,36 @@ def outstanding_bills():
         return jsonify({'error': 'Unauthorized'}), 403
     conn = get_db_conn()
     cur = conn.cursor()
-    cur.execute("SELECT id, customer_name, bl_number, service_fee, invoice_filename FROM bill_of_lading WHERE status!='Completed'")
+
+    cur.execute("""
+        SELECT id, customer_name, bl_number, service_fee, invoice_filename
+        FROM bill_of_lading
+        WHERE status = 'Awaiting Bank In'
+           OR (payment_method = 'Allinpay' AND payment_status = 'Unsettled')
+    """)
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
     bills = [dict(zip(columns, row)) for row in rows]
     cur.close()
     conn.close()
     return jsonify(bills)
+
+
+# @app.route('/api/stats/outstanding_bills')
+# @jwt_required()
+# def outstanding_bills():
+#     user = json.loads(get_jwt_identity())
+#     if user['role'] not in ['staff', 'admin']:
+#         return jsonify({'error': 'Unauthorized'}), 403
+#     conn = get_db_conn()
+#     cur = conn.cursor()
+#     cur.execute("SELECT id, customer_name, bl_number, service_fee, invoice_filename FROM bill_of_lading WHERE status!='Completed'")
+#     rows = cur.fetchall()
+#     columns = [desc[0] for desc in cur.description]
+#     bills = [dict(zip(columns, row)) for row in rows]
+#     cur.close()
+#     conn.close()
+#     return jsonify(bills)
 
 @app.route('/api/request_password_reset', methods=['POST'])
 def request_password_reset():
@@ -1445,477 +1377,6 @@ def account_bills():
 
     return jsonify({'bills': bills, 'summary': summary})
 
-# @app.route('/api/account_bills', methods=['GET'])
-# def account_bills():
-#     completed_at = request.args.get('completed_at')
-#     bl_number = request.args.get('bl_number')
-
-#     conn = get_db_conn()
-#     cur = conn.cursor()
-
-#     # Build base query
-#     select_clause = '''
-#         SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
-#                shipper, consignee, port_of_loading, port_of_discharge, bl_number,
-#                container_numbers, service_fee, ctn_fee, payment_link, receipt_filename,
-#                status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
-#                completed_at, allinpay_85_received_at,
-#                customer_username, customer_invoice, customer_packing_list,
-#                payment_method, payment_status, reserve_status
-#         FROM bill_of_lading
-#         WHERE status = 'Paid and CTN Valid'
-#     '''
-
-#     where_clauses = []
-#     params = []
-
-#     if completed_at:
-#         start_date, end_date = get_hk_date_range(completed_at)
-#         print("DEBUG: start_date", start_date, "end_date", end_date)
-#         where_clauses.append(
-#             "((payment_method = 'Allinpay' AND allinpay_85_received_at >= %s AND allinpay_85_received_at < %s) "
-#             "OR (payment_method = 'Allinpay' AND completed_at >= %s AND completed_at < %s) "
-#             "OR (payment_method != 'Allinpay' AND completed_at >= %s AND completed_at < %s))"
-#         )
-#         params.extend([start_date, end_date, start_date, end_date, start_date, end_date])
-#     if bl_number:
-#         where_clauses.append("bl_number ILIKE %s")
-#         params.append(f'%{bl_number}%')
-
-#     if where_clauses:
-#         select_clause += " AND " + " AND ".join(where_clauses)
-
-#     select_clause += " ORDER BY id DESC"
-
-#     cur.execute(select_clause, tuple(params))
-#     rows = cur.fetchall()
-#     columns = [desc[0] for desc in cur.description]
-
-#     bills = []
-#     valid_bills = []
-#     total_bank_ctn = 0
-#     total_bank_service = 0
-#     total_allinpay_85_ctn = 0
-#     total_allinpay_85_service = 0
-#     total_reserve_ctn = 0
-#     total_reserve_service = 0
-
-#     for row in rows:
-#         bill = dict(zip(columns, row))
-
-#         # Decrypt sensitive fields
-#         if bill.get('customer_email'):
-#             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
-#         if bill.get('customer_phone'):
-#             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
-
-#         bills.append(bill)
-
-#         try:
-#             ctn_fee = float(bill.get('ctn_fee') or 0)
-#             service_fee = float(bill.get('service_fee') or 0)
-#         except (TypeError, ValueError):
-#             continue
-
-#         valid_bills.append(bill)
-
-#         # Debug print for each bill
-#         print("DEBUG: bill id", bill.get('id'), "payment_method", bill.get('payment_method'),
-#               "allinpay_85_received_at", bill.get('allinpay_85_received_at'),
-#               "completed_at", bill.get('completed_at'),
-#               "reserve_status", bill.get('reserve_status'))
-
-#         if bill.get('payment_method') == 'Allinpay':
-#             # 85% part
-#             allinpay_85_dt = bill.get('allinpay_85_received_at')
-#             if allinpay_85_dt:
-#                 if isinstance(allinpay_85_dt, str):
-#                     try:
-#                         allinpay_85_dt = parser.isoparse(allinpay_85_dt)
-#                     except Exception:
-#                         allinpay_85_dt = None
-#                 if allinpay_85_dt and allinpay_85_dt.tzinfo is None:
-#                     # Assume UTC if no tzinfo
-#                     allinpay_85_dt = allinpay_85_dt.replace(tzinfo=pytz.UTC)
-#                 if completed_at and allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
-#                     total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
-#                     total_allinpay_85_service += round(service_fee * 0.85, 2)
-#                     continue  # Don't double count as reserve
-
-#             # 15% part (reserve): only if reserve is settled and completed_at is in range
-#             reserve_status = (bill.get('reserve_status') or '').lower()
-#             completed_dt = bill.get('completed_at')
-#             if completed_dt:
-#                 if isinstance(completed_dt, str):
-#                     try:
-#                         completed_dt = parser.isoparse(completed_dt)
-#                     except Exception:
-#                         completed_dt = None
-#                 if completed_dt and completed_dt.tzinfo is None:
-#                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
-#             if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date:
-#                 total_reserve_ctn += round(ctn_fee * 0.15, 2)
-#                 total_reserve_service += round(service_fee * 0.15, 2)
-#         else:
-#             # Bank Transfer: only if completed_at is in range
-#             completed_dt = bill.get('completed_at')
-#             if completed_dt:
-#                 if isinstance(completed_dt, str):
-#                     try:
-#                         completed_dt = parser.isoparse(completed_dt)
-#                     except Exception:
-#                         completed_dt = None
-#                 if completed_dt and completed_dt.tzinfo is None:
-#                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
-#             if completed_at and completed_dt and start_date <= completed_dt < end_date:
-#                 total_bank_ctn += ctn_fee
-#                 total_bank_service += service_fee
-
-#     summary = {
-#         'totalEntries': len(valid_bills),
-#         'totalCtnFee': round(total_bank_ctn + total_allinpay_85_ctn + total_reserve_ctn, 2),
-#         'totalServiceFee': round(total_bank_service + total_allinpay_85_service + total_reserve_service, 2),
-#         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
-#         'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
-#         'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
-#     }
-
-#     cur.close()
-#     conn.close()
-
-#     return jsonify({'bills': bills, 'summary': summary})
-
-
-# @app.route('/api/account_bills', methods=['GET'])
-# def account_bills():
-#     completed_at = request.args.get('completed_at')
-#     bl_number = request.args.get('bl_number')
-
-#     conn = get_db_conn()
-#     cur = conn.cursor()
-
-#     # Build base query
-#     select_clause = '''
-#         SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
-#                shipper, consignee, port_of_loading, port_of_discharge, bl_number,
-#                container_numbers, service_fee, ctn_fee, payment_link, receipt_filename,
-#                status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
-#                completed_at, allinpay_85_received_at,
-#                customer_username, customer_invoice, customer_packing_list,
-#                payment_method, payment_status, reserve_status
-#         FROM bill_of_lading
-#         WHERE status = 'Paid and CTN Valid'
-#     '''
-
-#     where_clauses = []
-#     params = []
-
-#     if completed_at:
-#         start_date, end_date = get_hk_date_range(completed_at)
-#         print("DEBUG: start_date", start_date, "end_date", end_date)
-#         where_clauses.append(
-#             "((payment_method = 'Allinpay' AND allinpay_85_received_at >= %s AND allinpay_85_received_at < %s) "
-#             "OR (payment_method = 'Allinpay' AND completed_at >= %s AND completed_at < %s) "
-#             "OR (payment_method != 'Allinpay' AND completed_at >= %s AND completed_at < %s))"
-#         )
-#         params.extend([start_date, end_date, start_date, end_date, start_date, end_date])
-#     if bl_number:
-#         where_clauses.append("bl_number ILIKE %s")
-#         params.append(f'%{bl_number}%')
-
-#     if where_clauses:
-#         select_clause += " AND " + " AND ".join(where_clauses)
-
-#     select_clause += " ORDER BY id DESC"
-
-#     cur.execute(select_clause, tuple(params))
-#     rows = cur.fetchall()
-#     columns = [desc[0] for desc in cur.description]
-
-#     bills = []
-#     valid_bills = []
-#     total_bank_ctn = 0
-#     total_bank_service = 0
-#     total_allinpay_85_ctn = 0
-#     total_allinpay_85_service = 0
-#     total_reserve_ctn = 0
-#     total_reserve_service = 0
-
-#     for row in rows:
-#         bill = dict(zip(columns, row))
-
-#         # Decrypt sensitive fields
-#         if bill.get('customer_email'):
-#             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
-#         if bill.get('customer_phone'):
-#             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
-
-#         bills.append(bill)
-
-#         try:
-#             ctn_fee = float(bill.get('ctn_fee') or 0)
-#             service_fee = float(bill.get('service_fee') or 0)
-#         except (TypeError, ValueError):
-#             continue
-
-#         valid_bills.append(bill)
-
-#         # Debug print for each bill
-#         print("DEBUG: bill id", bill.get('id'), "payment_method", bill.get('payment_method'),
-#               "allinpay_85_received_at", bill.get('allinpay_85_received_at'),
-#               "completed_at", bill.get('completed_at'),
-#               "reserve_status", bill.get('reserve_status'))
-
-#         if bill.get('payment_method') == 'Allinpay':
-#             # 85% part
-#             allinpay_85_dt = bill.get('allinpay_85_received_at')
-#             if allinpay_85_dt:
-#                 if isinstance(allinpay_85_dt, str):
-#                     try:
-#                         allinpay_85_dt = parser.isoparse(allinpay_85_dt)
-#                     except Exception:
-#                         allinpay_85_dt = None
-#                 if allinpay_85_dt and allinpay_85_dt.tzinfo is None:
-#                     # Assume UTC if no tzinfo
-#                     allinpay_85_dt = allinpay_85_dt.replace(tzinfo=pytz.UTC)
-#                 if completed_at and allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
-#                     total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
-#                     total_allinpay_85_service += round(service_fee * 0.85, 2)
-#                     continue  # Don't double count as reserve
-
-#             # 15% part (reserve): only if reserve is settled and completed_at is in range
-#             reserve_status = (bill.get('reserve_status') or '').lower()
-#             completed_dt = bill.get('completed_at')
-#             if completed_dt:
-#                 if isinstance(completed_dt, str):
-#                     try:
-#                         completed_dt = parser.isoparse(completed_dt)
-#                     except Exception:
-#                         completed_dt = None
-#                 if completed_dt and completed_dt.tzinfo is None:
-#                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
-#             if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date:
-#                 total_reserve_ctn += round(ctn_fee * 0.15, 2)
-#                 total_reserve_service += round(service_fee * 0.15, 2)
-#         else:
-#             # Bank Transfer: only if completed_at is in range
-#             completed_dt = bill.get('completed_at')
-#             if completed_dt:
-#                 if isinstance(completed_dt, str):
-#                     try:
-#                         completed_dt = parser.isoparse(completed_dt)
-#                     except Exception:
-#                         completed_dt = None
-#                 if completed_dt and completed_dt.tzinfo is None:
-#                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
-#             if completed_at and completed_dt and start_date <= completed_dt < end_date:
-#                 total_bank_ctn += ctn_fee
-#                 total_bank_service += service_fee
-
-#     summary = {
-#         'totalEntries': len(valid_bills),
-#         'totalCtnFee': round(total_bank_ctn + total_allinpay_85_ctn + total_reserve_ctn, 2),
-#         'totalServiceFee': round(total_bank_service + total_allinpay_85_service + total_reserve_service, 2),
-#         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
-#         'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
-#         'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
-#     }
-
-#     cur.close()
-#     conn.close()
-
-#     return jsonify({'bills': bills, 'summary': summary})
-
-# @app.route('/api/account_bills', methods=['GET'])
-# def account_bills():
-#     completed_at = request.args.get('completed_at')
-#     bl_number = request.args.get('bl_number')
-
-#     conn = get_db_conn()
-#     cur = conn.cursor()
-
-#     base_query = '''
-#         SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
-#                shipper, consignee, port_of_loading, port_of_discharge, bl_number,
-#                container_numbers, service_fee, ctn_fee, payment_link, receipt_filename,
-#                status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
-#                completed_at, customer_username, customer_invoice, customer_packing_list,
-#                payment_method, payment_status, reserve_status
-#         FROM bill_of_lading
-#         WHERE status = 'Paid and CTN Valid'
-#     '''
-
-#     where_clauses = []
-#     params = []
-
-#     if completed_at:
-#         start_date, end_date = get_hk_date_range(completed_at)
-#         where_clauses.append("completed_at >= %s AND completed_at < %s")
-#         params.extend([start_date, end_date])
-#     if bl_number:
-#         where_clauses.append("bl_number ILIKE %s")
-#         params.append(f'%{bl_number}%')
-
-#     if where_clauses:
-#         base_query += " AND " + " AND ".join(where_clauses)
-
-#     base_query += " ORDER BY id DESC"
-#     cur.execute(base_query, tuple(params))
-#     rows = cur.fetchall()
-#     columns = [desc[0] for desc in cur.description]
-
-#     bills = []
-#     valid_bills = []
-#     total_bank_ctn = 0
-#     total_bank_service = 0
-#     total_allinpay_85_ctn = 0
-#     total_allinpay_85_service = 0
-#     total_reserve_ctn = 0
-#     total_reserve_service = 0
-
-#     for row in rows:
-#         bill = dict(zip(columns, row))
-
-#         # Decrypt sensitive fields
-#         if bill.get('customer_email'):
-#             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
-#         if bill.get('customer_phone'):
-#             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
-
-#         bills.append(bill)
-
-#         # Convert fee strings to float, skip if invalid
-#         try:
-#             ctn_fee = float(bill.get('ctn_fee'))
-#             service_fee = float(bill.get('service_fee'))
-#         except (TypeError, ValueError):
-#             continue  # skip this bill for summary
-
-#         valid_bills.append(bill)
-
-#         if bill.get('payment_method') == 'Allinpay':
-#             # Always add 85% to allinpay85
-#             total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
-#             total_allinpay_85_service += round(service_fee * 0.85, 2)
-#             # Only add 15% to reserve if settled
-#             reserve_status = (bill.get('reserve_status') or '').lower()
-#             if reserve_status in ['settled', 'reserve settled']:
-#                 total_reserve_ctn += round(ctn_fee * 0.15, 2)
-#                 total_reserve_service += round(service_fee * 0.15, 2)
-#         else:
-#             total_bank_ctn += ctn_fee
-#             total_bank_service += service_fee
-
-#     summary = {
-#     'totalEntries': len(valid_bills),
-#     'totalCtnFee': round(total_bank_ctn + total_allinpay_85_ctn + total_reserve_ctn, 2),
-#     'totalServiceFee': round(total_bank_service + total_allinpay_85_service + total_reserve_service, 2),
-#     'bankTotal': round(total_bank_ctn + total_bank_service, 2),
-#     'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
-#     'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
-# }
-
- 
-#     cur.close()
-#     conn.close()
-#     return jsonify({'bills': bills, 'summary': summary})
-
-
-
-# @app.route('/api/account_bills', methods=['GET'])
-# def account_bills():
-#     completed_at = request.args.get('completed_at')
-#     bl_number = request.args.get('bl_number')
-
-#     conn = get_db_conn()
-#     cur = conn.cursor()
-
-#     base_query = '''
-#         SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
-#                shipper, consignee, port_of_loading, port_of_discharge, bl_number,
-#                container_numbers, service_fee, ctn_fee, payment_link, receipt_filename,
-#                status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
-#                completed_at, customer_username, customer_invoice, customer_packing_list,
-#                payment_method, payment_status, reserve_status
-#         FROM bill_of_lading
-#         WHERE status = 'Paid and CTN Valid'
-#     '''
-
-#     where_clauses = []
-#     params = []
-
-#     if completed_at:
-#         start_date, end_date = get_hk_date_range(completed_at)
-#         where_clauses.append("completed_at >= %s AND completed_at < %s")
-#         params.extend([start_date, end_date])
-#     if bl_number:
-#         where_clauses.append("bl_number ILIKE %s")
-#         params.append(f'%{bl_number}%')
-
-#     if where_clauses:
-#         base_query += " AND " + " AND ".join(where_clauses)
-
-#     base_query += " ORDER BY id DESC"
-#     cur.execute(base_query, tuple(params))
-#     rows = cur.fetchall()
-#     columns = [desc[0] for desc in cur.description]
-
-#     bills = []
-#     valid_bills = []
-#     total_bank_ctn = 0
-#     total_bank_service = 0
-#     total_allinpay_85_ctn = 0
-#     total_allinpay_85_service = 0
-#     total_reserve_ctn = 0
-#     total_reserve_service = 0
-
-#     for row in rows:
-#         bill = dict(zip(columns, row))
-
-#         # Decrypt sensitive fields
-#         if bill.get('customer_email'):
-#             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
-#         if bill.get('customer_phone'):
-#             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
-
-#         bills.append(bill)
-
-#         # Convert fee strings to float, skip if invalid
-#         try:
-#             ctn_fee = float(bill.get('ctn_fee'))
-#             service_fee = float(bill.get('service_fee'))
-#         except (TypeError, ValueError):
-#             continue  # skip this bill for summary
-
-#         valid_bills.append(bill)
-
-#         # Logic based on payment method
-#         if bill.get('payment_method') == 'Allinpay':
-#             if bill.get('reserve_status') == 'Settled':
-#                 # Reserve (15%)
-#                 total_reserve_ctn += round(ctn_fee * 0.15, 2)
-#                 total_reserve_service += round(service_fee * 0.15, 2)
-#             else:
-#                 # 85% part
-#                 total_allinpay_85_ctn += round(ctn_fee * 0.85, 2)
-#                 total_allinpay_85_service += round(service_fee * 0.85, 2)
-#         else:
-#             # Assume Bank Transfer
-#             total_bank_ctn += ctn_fee
-#             total_bank_service += service_fee
-
-#     summary = {
-#         'totalEntries': len(valid_bills),
-#         'totalCtnFee': round(sum(float(b.get('ctn_fee')) for b in valid_bills), 2),
-#         'totalServiceFee': round(sum(float(b.get('service_fee')) for b in valid_bills), 2),
-#         'bankTotal': round(total_bank_ctn + total_bank_service, 2),
-#         'allinpay85Total': round(total_allinpay_85_ctn + total_allinpay_85_service, 2),
-#         'reserveTotal': round(total_reserve_ctn + total_reserve_service, 2)
-#     }
-
-#     cur.close()
-#     conn.close()
-#     return jsonify({'bills': bills, 'summary': summary})
 
 @app.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
 def generate_payment_link(bill_id):
@@ -2023,71 +1484,6 @@ def get_awaiting_bank_in_bills():
             conn.close()
         except:
             pass
-
-
-# @app.route('/api/bills/awaiting_bank_in', methods=['GET'])
-# @jwt_required()
-# def get_awaiting_bank_in_bills():
-#     try:
-#         bl_number = request.args.get('bl_number')
-#         if bl_number is not None:
-#             bl_number = bl_number.strip()
-#         else:
-#             bl_number = ''
-
-#         conn = get_db_conn()
-#         cur = conn.cursor()
-
-#         where_clauses = []
-#         params = []
-
-#         reserve_filter = "(reserve_status IS NULL OR reserve_status != 'Reserve Settled')"
-#         where_clauses.append(reserve_filter)
-
-#         # Only add search if bl_number is not empty
-#         if bl_number:
-#             where_clauses.append(
-#                 "((status = 'Awaiting Bank In' AND bl_number ILIKE %s) OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%' AND bl_number ILIKE %s))"
-#             )
-#             params.extend([f"%{bl_number}%", f"%{bl_number}%"])
-#         else:
-#             where_clauses.append(
-#                 "((status = 'Awaiting Bank In') OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%'))"
-#             )
-
-#         where_sql = " AND ".join(where_clauses)
-
-#         query = f'''
-#             SELECT * FROM bill_of_lading
-#             WHERE {where_sql}
-#             ORDER BY id DESC
-#         '''
-#         print("QUERY:", query)
-#         print("PARAMS:", params)
-#         if params:
-#             cur.execute(query, tuple(params))
-#         else:
-#             cur.execute(query)
-#         rows = cur.fetchall()
-#         columns = [desc[0] for desc in cur.description]
-#         bills = []
-#         for row in rows:
-#             bill_dict = dict(zip(columns, row))
-#             bills.append(bill_dict)
-
-#         return jsonify({'bills': bills, 'total': len(bills)})
-#     except Exception as e:
-#         print("❌ ERROR in awaiting_bank_in:", str(e))
-#         import traceback
-#         traceback.print_exc()
-#         return jsonify({'error': 'Internal server error'}), 500
-#     finally:
-#         try:
-#             cur.close()
-#             conn.close()
-#         except:
-#             pass
-
 
 
 
