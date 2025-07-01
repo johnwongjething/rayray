@@ -998,7 +998,7 @@ def stats_summary():
     cur.execute("""
     SELECT COUNT(*) 
     FROM bill_of_lading 
-    WHERE status IN ('Pending', 'Awaiting Bank In')
+    WHERE status IN ('Pending', 'Invoice Sent', 'Awaiting Bank In')
 """)
     pending_bills = cur.fetchone()[0]
 
