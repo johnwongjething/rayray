@@ -1020,7 +1020,7 @@ def stats_summary():
     total_payment_received = float(cur.fetchone()[0] or 0)
 
     # ✅ Total Payment Outstanding = Awaiting Bank In + reserve_amount (unsettled)
-    cur.execute("SELECT COALESCE(SUM(service_fee), 0) FROM bill_of_lading WHERE status = 'Awaiting Bank In'")
+    cur.execute("SELECT COALESCE(SUM(service_fee + ctn_fee), 0) FROM bill_of_lading WHERE status = 'Awaiting Bank In'")
     awaiting_payment = float(cur.fetchone()[0] or 0)
 
     cur.execute("SELECT COALESCE(SUM(reserve_amount), 0) FROM bill_of_lading WHERE LOWER(TRIM(reserve_status)) = 'unsettled'")
