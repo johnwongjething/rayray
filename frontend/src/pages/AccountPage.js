@@ -155,7 +155,7 @@ const columns = [
   `$${bill.display_service_fee || 0}`,
   `$${(parseFloat(bill.display_ctn_fee || 0) + parseFloat(bill.display_service_fee || 0)).toFixed(2)}`,
   bill.customer_name || '',
-  bill.payment_method || '',
+  bill.payment_method === 'Allinpay' ? 'Allinpay' : 'Bank Transfer',
   bill.completed_at ? new Date(bill.completed_at).toLocaleString('en-HK', { timeZone: 'Asia/Hong_Kong' }) : ''
 ]);
     
