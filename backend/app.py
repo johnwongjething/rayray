@@ -1307,7 +1307,7 @@ def get_hk_date_range(search_date_str):
     next_date = search_date + timedelta(days=1)
     return search_date, next_date
 
-from dateutil import parser
+
 
 @app.route('/api/account_bills', methods=['GET'])
 def account_bills():
