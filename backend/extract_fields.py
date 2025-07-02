@@ -116,8 +116,9 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
                 if k.lower() in line.lower():
                     for j in range(i + 1, len(lines)):
                         next_line = lines[j].strip()
-                        if next_line and not re.match(r'^[A-Za-z]+\s+(Service|Agreement)$', next_line) and (re.match(r'^[A-Z][a-zA-Z\s]+(CO\.|LTD|INC)$', next_line) or re.match(r'^[A-Z][a-zA-Z\s]+$', next_line)):
-                            return next_line.split('\n')[0].strip()
+                        if next_line and not re.match(r'^[A-Za-z]+\s+(Service|Agreement)$', next_line):
+                            if re.search(r'(CO\.|LTD|INC)|[A-Z][a-z]+', next_line):
+                                return next_line.split('\n')[0].strip()
         return default
 
     def find_port_after_keyword(keywords: List[str], default: str = "") -> str:
@@ -133,12 +134,22 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
                                 return part
         return default
 
+    def find_consignee_after_keyword(keywords: List[str], default: str = "") -> str:
+        for i, line in enumerate(lines):
+            for k in keywords:
+                if k.lower() in line.lower():
+                    for j in range(i + 1, len(lines)):
+                        next_line = lines[j].strip()
+                        if next_line and re.search(r'[A-Z]{2,}\s+\d+|[A-Z]{2,}\s+[A-Z]{2}', next_line):
+                            return next_line.split('\n')[0].strip()
+        return default
+
     bl_number = extract_bl_number(text)
 
     container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', text, re.IGNORECASE))))
 
     shipper = find_after_keyword(['2. exporter', 'shipper', 'shipper/exporter'])
-    consignee = find_after_keyword(['3. consigned to', 'consignee'])
+    consignee = find_consignee_after_keyword(['3. consigned to', 'consignee'])
 
     port_of_loading = find_port_after_keyword(['port of loading', 'place of receipt', 'place and date of issue', 'laden on board'])
     port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
