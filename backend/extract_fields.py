@@ -63,19 +63,21 @@ def extract_bl_number(text: str) -> str:
     """Find the B/L number, looking near 'B/L NUMBER' or similar labels."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
-        if 'B/L NUMBER' in line.upper() or 'BILL OF LADING NUMBER' in line.upper():
-            match = re.search(r'[A-Z0-9]{6,}', line)
-            if match:
-                return match.group(0)
-        elif 'B/L' in line.upper():
-            match = re.search(r'[A-Z0-9]{6,}', line)
-            if match:
-                return match.group(0)
+        if any(label in line.upper() for label in ['B/L NUMBER', 'BILL OF LADING NUMBER', 'BL', 'SA. B/L NUMBER']):
+            # Check the current line and the next line
+            current_match = re.search(r'[A-Z0-9]{6,}', line)
+            if current_match:
+                return current_match.group(0)
+            if i + 1 < len(lines):
+                next_match = re.search(r'[A-Z0-9]{6,}', lines[i + 1])
+                if next_match:
+                    return next_match.group(0)
+    # Fallback to general pattern
     match = re.search(r'\b([A-Z]{3,}\d{6,})\b', text)
     return match.group(1) if match else ''
 
 def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) -> str:
-    """Get the first line of text below a label."""
+    """Get the full line of text below a label, not just the first word."""
     label_boxes = [b for b in boxes if any(k.lower() in b['text'].lower() for k in label_keywords)]
     if not label_boxes:
         return ''
@@ -84,10 +86,10 @@ def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) 
     center_x = (label_box['left'] + label_box['right']) / 2
     candidates = [
         b for b in boxes 
-        if b['top'] > label_y and abs(((b['left'] + b['right']) / 2) - center_x) < 200
+        if b['top'] > label_y and abs(((b['left'] + b['right']) / 2) - center_x) < 300  # Increased threshold
     ]
     candidates.sort(key=lambda b: b['top'])
-    return candidates[0]['text'].split(',')[0].split()[0] if candidates else ''
+    return candidates[0]['text'].strip() if candidates else ''  # Return full line
 
 def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
     """Extract fields using the position of text boxes."""
@@ -108,7 +110,7 @@ def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
             logging.error(f"Error processing block: {str(e)}")
             continue
     
-    bl_number = extract_first_line_near_label(boxes, ['b/l number', 'bill of lading number', 'bl'])
+    bl_number = extract_first_line_near_label(boxes, ['b/l number', 'bill of lading number', 'bl', 'sa. b/l number'])
     if not bl_number:
         bl_number = extract_bl_number(full_text)
     
@@ -237,6 +239,10 @@ def extract_fields(file_path: str) -> Dict:
         combined_result[key] = text_result[key] if text_result[key] else spatial_result.get(key, '')
 
     return combined_result
+
+if __name__ == "__main__":
+    result = extract_fields("your_pdf_file.pdf")
+    print(result)
 
 
 # extract_fields_universal_boxlogic.py - patched for bounding-box shipper/consignee, cleaned port logic
