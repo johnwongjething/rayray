@@ -143,40 +143,34 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
         for block in page.blocks:
             blocks.append(block)
 
-    def find_by_prefix(prefixes: List[str]) -> str:
-        for block in blocks:
-            for para in block.paragraphs:
-                for word in para.words:
-                    word_text = ''.join(s.text for s in word.symbols)
-                    for prefix in prefixes:
-                        if prefix.lower() in word_text.lower():
-                            return ' '.join(''.join(s.text for s in w.symbols) for w in para.words).split('\n')[0]
-        return ""
-
     def find_after_keyword(keywords: List[str], default: str = "") -> str:
         for i, line in enumerate(lines):
             for k in keywords:
                 if k.lower() in line.lower():
-                    # Read until next section or end of block
-                    result = ""
-                    for next_line in lines[i + 1:]:
-                        if any(next_k.lower() in next_line.lower() for next_k in ['notify party', 'intermediate consignee', 'pre-carriage', 'port of loading', 'port of discharge']):
-                            break
-                        if not any(k.lower() in next_line.lower() for k in keywords):  # Exclude label itself
-                            result += next_line + " "
-                    return result.strip()
+                    next_line = lines[i + 1] if i + 1 < len(lines) else ""
+                    if next_line:
+                        return next_line.split('\n')[0].strip()
+        return default
+
+    def find_port_after_keyword(keywords: List[str], default: str = "") -> str:
+        for i, line in enumerate(lines):
+            for k in keywords:
+                if k.lower() in line.lower():
+                    next_line = lines[i + 1] if i + 1 < len(lines) else ""
+                    if next_line:
+                        return next_line.split(',')[0].strip()
         return default
 
     bl_number = extract_bl_number(text)
 
     container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', text, re.IGNORECASE))))
 
-    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe']).split('\n')[0] if find_after_keyword(['2. exporter', 'shipper', 'shippe']) else ''
-    consignee = find_after_keyword(['3. consigned to', 'consignee']).split('\n')[0] if find_after_keyword(['3. consigned to', 'consignee']) else ''
+    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
+    consignee = find_after_keyword(['3. consigned to', 'consignee'])
 
-    port_of_loading = find_after_keyword(['port of loading', 'port of export']).split(',')[0].strip() if find_after_keyword(['port of loading', 'port of export']) else ''
-    port_of_discharge = find_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading']).split(',')[0].strip() if find_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading']) else ''
-    vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel']).split('\n')[0] if find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel']) else ''
+    port_of_loading = find_port_after_keyword(['port of loading', 'port of export'])
+    port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
+    vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel'])
 
     product_description = ""
     for i, line in enumerate(lines):
