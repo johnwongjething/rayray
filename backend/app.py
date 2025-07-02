@@ -1081,6 +1081,7 @@ def stats_summary():
 #         'total_payment_outstanding': total_payment_outstanding
 #     })
 
+
 @app.route('/api/stats/outstanding_bills')
 @jwt_required()
 def outstanding_bills():
@@ -1089,18 +1090,60 @@ def outstanding_bills():
         return jsonify({'error': 'Unauthorized'}), 403
     conn = get_db_conn()
     cur = conn.cursor()
+
     cur.execute("""
-    SELECT id, customer_name, bl_number, ctn_fee, service_fee, reserve_amount, invoice_filename
-    FROM bill_of_lading
-    WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
-       OR (payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled')
-""")
+        SELECT id, customer_name, bl_number, ctn_fee, service_fee, reserve_amount,
+               payment_method, reserve_status, invoice_filename
+        FROM bill_of_lading
+        WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
+           OR (payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled')
+    """)
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
-    bills = [dict(zip(columns, row)) for row in rows]
+    
+    bills = []
+    for row in rows:
+        record = dict(zip(columns, row))
+        ctn_fee = float(record['ctn_fee'] or 0)
+        service_fee = float(record['service_fee'] or 0)
+
+        # By default, show full outstanding
+        outstanding = ctn_fee + service_fee
+
+        # For Allinpay with Unsettled reserve, show only 15%
+        if record.get('payment_method') == 'Allinpay' and record.get('reserve_status', '').strip().lower() == 'unsettled':
+            outstanding = round(ctn_fee * 0.15 + service_fee * 0.15, 2)
+
+        record['outstanding_amount'] = outstanding
+        bills.append(record)
+
     cur.close()
     conn.close()
     return jsonify(bills)
+
+
+
+# as at 1st July
+# @app.route('/api/stats/outstanding_bills')
+# @jwt_required()
+# def outstanding_bills():
+#     user = json.loads(get_jwt_identity())
+#     if user['role'] not in ['staff', 'admin']:
+#         return jsonify({'error': 'Unauthorized'}), 403
+#     conn = get_db_conn()
+#     cur = conn.cursor()
+#     cur.execute("""
+#     SELECT id, customer_name, bl_number, ctn_fee, service_fee, reserve_amount, invoice_filename
+#     FROM bill_of_lading
+#     WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
+#        OR (payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled')
+# """)
+#     rows = cur.fetchall()
+#     columns = [desc[0] for desc in cur.description]
+#     bills = [dict(zip(columns, row)) for row in rows]
+#     cur.close()
+#     conn.close()
+#     return jsonify(bills)
 
 
 # @app.route('/api/stats/outstanding_bills')
