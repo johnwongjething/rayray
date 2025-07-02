@@ -1080,7 +1080,6 @@ def stats_summary():
 #         'total_payment_received': total_payment_received,
 #         'total_payment_outstanding': total_payment_outstanding
 #     })
-
 @app.route('/api/stats/outstanding_bills')
 @jwt_required()
 def outstanding_bills():
@@ -1093,34 +1092,40 @@ def outstanding_bills():
 
     cur.execute("""
         SELECT 
-            id,
-            customer_name,
-            bl_number,
-            ctn_fee,
-            service_fee,
-            reserve_amount,
-            payment_method,
-            reserve_status,
-            invoice_filename,
-            CASE 
-                WHEN payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled'
-                    THEN ROUND(ctn_fee * 0.15 + service_fee * 0.15, 2)
-                ELSE ROUND(ctn_fee + service_fee, 2)
-            END AS outstanding_amount
+            id, customer_name, bl_number,
+            ctn_fee, service_fee, reserve_amount,
+            payment_method, reserve_status,
+            invoice_filename
         FROM bill_of_lading
         WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
            OR (payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled')
     """)
-
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
-    bills = [dict(zip(columns, row)) for row in rows]
+
+    bills = []
+    for row in rows:
+        bill = dict(zip(columns, row))
+
+        ctn_fee = float(bill.get('ctn_fee') or 0)
+        service_fee = float(bill.get('service_fee') or 0)
+
+        reserve_status = (bill.get('reserve_status') or '').strip().lower()
+        payment_method = (bill.get('payment_method') or '').strip().lower()
+
+        # Default: full invoice amount
+        outstanding_amount = ctn_fee + service_fee
+
+        # If Allinpay with Unsettled Reserve: only 15%
+        if payment_method == 'allinpay' and reserve_status == 'unsettled':
+            outstanding_amount = round(ctn_fee * 0.15 + service_fee * 0.15, 2)
+
+        bill['outstanding_amount'] = outstanding_amount
+        bills.append(bill)
 
     cur.close()
     conn.close()
     return jsonify(bills)
-
-
 
 
 # as at 1st July
