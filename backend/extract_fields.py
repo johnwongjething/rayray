@@ -63,17 +63,17 @@ def extract_bl_number(text: str) -> str:
     """Find the B/L number, prioritizing near 'B/L' or 'BILL OF LADING' labels."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
-        if any(label in line.upper() for label in ['B/L NUMBER', 'BILL OF LADING NUMBER', 'B/L NO.', 'BL', 'SA. B/L NUMBER', 'EXPORT REFERENCES']):
-            current_match = re.search(r'[A-Z]{3}\d{6,}', line)
-            if current_match:
-                return current_match.group(0)
+        if any(label in line.upper() for label in ['B/L NO.', 'B/L NUMBER', 'BILL OF LADING NUMBER', 'B/L NO', 'BL NO']):
+            match = re.search(r'(?:B/L\s*No\.\s*)?(\w{3}\d{6,})', line)
+            if match:
+                return match.group(1)
             if i + 1 < len(lines):
-                next_match = re.search(r'[A-Z]{3}\d{6,}', lines[i + 1])
+                next_match = re.search(r'\w{3}\d{6,}', lines[i + 1])
                 if next_match:
                     return next_match.group(0)
     # Fallback to general pattern with stricter criteria
     match = re.search(r'\b[A-Z]{3}\d{6,}\b(?![^\n]*CONSIGNEE|\s*EXPORT)', text)
-    return match.group(1) if match else ''
+    return match.group(0) if match else ''
 
 def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) -> str:
     """Get the line with BL number pattern below a label."""
@@ -90,9 +90,9 @@ def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) 
     candidates.sort(key=lambda b: b['top'])
     if candidates:
         for candidate in candidates[:3]:  # Check up to 3 lines below
-            match = re.search(r'[A-Z]{3}\d{6,}', candidate['text'])
-            if match:
-                return match.group(0)
+            text = candidate['text'].strip()
+            if not any(k.lower() in text.lower() for k in label_keywords):  # Exclude label itself
+                return text
         return candidates[0]['text'].strip() if candidates else ''
     return ''
 
@@ -121,7 +121,7 @@ def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
     
     return {
         'document_type': 'BOL',
-        'shipper': extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe']),  # Added partial match for 'shippe'
+        'shipper': extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe']),
         'consignee': extract_first_line_near_label(boxes, ['consignee', 'consigned to']),
         'port_of_loading': extract_first_line_near_label(boxes, ['port of loading', 'place of receipt']),
         'port_of_discharge': extract_first_line_near_label(boxes, ['port of discharge', 'place of delivery']),
@@ -156,11 +156,12 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
             for k in keywords:
                 if k.lower() in line.lower():
                     # Read until next section or end of block
-                    result = line
+                    result = ""
                     for next_line in lines[i + 1:]:
-                        if any(next_k.lower() in next_line.lower() for next_k in ['notify party', 'intermediate consignee', 'pre-carriage']):
+                        if any(next_k.lower() in next_line.lower() for next_k in ['notify party', 'intermediate consignee', 'pre-carriage', 'port of loading', 'port of discharge']):
                             break
-                        result += ' ' + next_line
+                        if not any(k.lower() in next_line.lower() for k in keywords):  # Exclude label itself
+                            result += next_line + " "
                     return result.strip()
         return default
 
