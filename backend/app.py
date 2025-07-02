@@ -1087,40 +1087,39 @@ def outstanding_bills():
     user = json.loads(get_jwt_identity())
     if user['role'] not in ['staff', 'admin']:
         return jsonify({'error': 'Unauthorized'}), 403
+
     conn = get_db_conn()
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, customer_name, bl_number, ctn_fee, service_fee, reserve_amount,
-               payment_method, reserve_status, invoice_filename
+        SELECT 
+            id,
+            customer_name,
+            bl_number,
+            ctn_fee,
+            service_fee,
+            reserve_amount,
+            payment_method,
+            reserve_status,
+            invoice_filename,
+            CASE 
+                WHEN payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled'
+                    THEN ROUND(ctn_fee * 0.15 + service_fee * 0.15, 2)
+                ELSE ROUND(ctn_fee + service_fee, 2)
+            END AS outstanding_amount
         FROM bill_of_lading
         WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
            OR (payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled')
     """)
+
     rows = cur.fetchall()
     columns = [desc[0] for desc in cur.description]
-    
-    bills = []
-    for row in rows:
-        record = dict(zip(columns, row))
-        ctn_fee = float(record['ctn_fee'] or 0)
-        service_fee = float(record['service_fee'] or 0)
-
-        # Force lowercase and trim for safe comparison
-        payment_method = (record.get('payment_method') or '').strip().lower()
-        reserve_status = (record.get('reserve_status') or '').strip().lower()
-
-        if payment_method == 'allinpay' and reserve_status == 'unsettled':
-            outstanding = round(ctn_fee * 0.15 + service_fee * 0.15, 2)
-        else:
-            outstanding = round(ctn_fee + service_fee, 2)
-
-        record['outstanding_amount'] = outstanding
-        bills.append(record)
+    bills = [dict(zip(columns, row)) for row in rows]
 
     cur.close()
     conn.close()
     return jsonify(bills)
+
 
 
 
