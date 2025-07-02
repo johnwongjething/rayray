@@ -1,108 +1,141 @@
 
+# extract_fields_universal_boxlogic.py - patched for bounding-box shipper/consignee, cleaned port logic
+
 import re
-import os
 import io
+import os
 from google.cloud import vision
 from dotenv import load_dotenv
-import logging
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
-
-GOOGLE_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-if not GOOGLE_CREDENTIALS or not os.path.exists(GOOGLE_CREDENTIALS):
-    raise RuntimeError('Google Vision credentials not found. Please set GOOGLE_APPLICATION_CREDENTIALS in your .env file.')
-
 client = vision.ImageAnnotatorClient()
 
-def extract_text_from_file(file_path):
-    with io.open(file_path, 'rb') as f:
+def extract_text_from_pdf(pdf_path):
+    with io.open(pdf_path, 'rb') as f:
         content = f.read()
-    input_config = vision.InputConfig(content=content, mime_type='application/pdf')
-    request = vision.AnnotateFileRequest(
-        input_config=input_config,
-        features=[vision.Feature(type_=vision.Feature.Type.DOCUMENT_TEXT_DETECTION)]
-    )
+    input_doc = vision.InputConfig(content=content, mime_type='application/pdf')
+    feature = vision.Feature(type_=vision.Feature.Type.DOCUMENT_TEXT_DETECTION)
+    request = vision.AnnotateFileRequest(input_config=input_doc, features=[feature])
     response = client.batch_annotate_files(requests=[request])
     return response.responses[0]
 
-def extract_block(lines, keyword, max_lines=4, stop_keywords=None):
-    for i, line in enumerate(lines):
-        if re.match(fr"^{keyword}\b", line.strip(), re.IGNORECASE):
-            logging.info(f"[DEBUG] Matched keyword '{keyword}' at line {i}: {line.strip()}")
-            block = []
-            for j in range(i + 1, min(i + 1 + max_lines, len(lines))):
-                next_line = lines[j].strip()
-                if stop_keywords and any(kw.lower() in next_line.lower() for kw in stop_keywords):
-                    break
-                block.append(next_line)
-            return " ".join(block)
+def get_center(bbox):
+    vertices = bbox.vertices
+    return sum(v.x for v in vertices) / 4, sum(v.y for v in vertices) / 4
+
+def find_nearest_label_text(target_keywords, blocks):
+    result = ""
+    candidates = []
+    for block in blocks:
+        text = ''.join([s.text for p in block.paragraphs for w in p.words for s in w.symbols])
+        candidates.append((text.strip(), get_center(block.bounding_box)))
+
+    for keyword in target_keywords:
+        for text, center in candidates:
+            if keyword.lower() in text.lower():
+                nearby = [
+                    (t, y) for t, (x, y) in candidates
+                    if abs(center[0] - x) < 150 and y > center[1]
+                ]
+                nearby.sort(key=lambda b: b[1])
+                if nearby:
+                    return nearby[0][0]
     return ""
 
-def extract_field_line(lines, keyword):
-    for i, line in enumerate(lines):
-        if keyword.lower() in line.lower():
-            logging.info(f"[DEBUG] Matched field '{keyword}' at line {i}: {line.strip()}")
-            if ":" in line:
-                return line.split(":")[-1].strip()
-            return lines[i + 1].strip() if i + 1 < len(lines) else ""
-    return ""
+def parse_boxes(page_response):
+    blocks = []
+    for page in page_response.full_text_annotation.pages:
+        for block in page.blocks:
+            blocks.extend(block.paragraphs)
+    return blocks
 
-def parse_universal_bol_fields(ocr_text, page_response):
-    lines = [line.strip() for line in ocr_text.split('\n') if line.strip()]
-    shipper = extract_block(lines, "SHIPPER", stop_keywords=["bill of lading", "consignee", "notify"])
-    consignee = extract_block(lines, "CONSIGNEE", stop_keywords=["notify", "vessel", "delivery", "place"])
-    port_of_loading = extract_field_line(lines, "PORT OF LOADING")
-    port_of_discharge = extract_field_line(lines, "PORT OF DISCHARGE")
-    flight_or_vessel = extract_block(lines, "VESSEL", max_lines=2)
-    product_description = extract_block(lines, "DESCRIPTION OF GOODS", max_lines=6, stop_keywords=["freight", "weight"])
+def parse_bol_fields(ocr_text, page_response):
+    text = ocr_text
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    blocks = []
+    for page in page_response.full_text_annotation.pages:
+        for block in page.blocks:
+            blocks.append(block)
+
+    def find_by_prefix(prefixes):
+        for block in blocks:
+            for para in block.paragraphs:
+                for word in para.words:
+                    word_text = ''.join([s.text for s in word.symbols])
+                    for prefix in prefixes:
+                        if prefix.lower() in word_text.lower():
+                            full_line = ' '.join(''.join(s.text for s in w.symbols) for w in para.words)
+                            return full_line
+        return ""
+
+    def find_after_keyword(keywords, default=""):
+        for i, line in enumerate(lines):
+            for k in keywords:
+                if k.lower() in line.lower():
+                    if i+1 < len(lines):
+                        return lines[i+1]
+        return default
 
     bl_number = ""
-    for line in lines:
-        if re.search(r"BILL OF LADING NUMBER", line, re.IGNORECASE):
-            idx = lines.index(line)
-            if idx + 1 < len(lines):
-                bl_number = lines[idx + 1].strip()
-                logging.info(f"[DEBUG] Found BL Number after label: {bl_number}")
-                break
-        match = re.search(r"\b[A-Z]{3,}\d{6,}\b", line)
-        if match and not bl_number:
+    for i, line in enumerate(lines):
+        if 'B/L NUMBER' in line.upper() or 'BILL OF LADING NUMBER' in line.upper():
+            match = re.search(r'[A-Z0-9]{6,}', line)
+            if match:
+                bl_number = match.group(0)
+        elif 'B/L' in line.upper():
+            match = re.search(r'[A-Z0-9]{6,}', line)
+            if match:
+                bl_number = match.group(0)
+    if not bl_number:
+        match = re.search(r'\b[A-Z]{3,}\d{6,}\b', text)
+        if match:
             bl_number = match.group(0)
 
-    container_numbers = set()
-    for line in lines:
-        matches = re.findall(r"\b([A-Z]{4}\d{7})\b", line)
-        container_numbers.update(matches)
+    container_numbers = re.findall(r'([A-Z]{4}\d{7})', text)
+    container_numbers = ', '.join(sorted(set(container_numbers)))
+
+    shipper = find_after_keyword(['2. EXPORTER', 'SHIPPER'])
+    consignee = find_after_keyword(['3. CONSIGNED TO', 'CONSIGNEE'])
+
+    if '\n' in shipper:
+        shipper = shipper.split('\n')[0]
+    if '\n' in consignee:
+        consignee = consignee.split('\n')[0]
+
+    port_of_loading = find_after_keyword(['PORT OF LOADING', 'PORT OF EXPORT'])
+    port_of_discharge = find_after_keyword(['PORT OF DISCHARGE', 'PLACE OF DELIVERY', 'FOREIGN PORT OF UNLOADING'])
+
+    vessel = find_after_keyword(['EXPORTING CARRIER', 'VESSEL', 'OCEAN VESSEL'])
+
+    product_description = ""
+    for i, line in enumerate(lines):
+        if 'DESCRIPTION OF COMMODITIES' in line.upper() or 'DESCRIPTION OF GOODS' in line.upper():
+            for j in range(i+1, i+5):
+                if j < len(lines) and not lines[j].lower().startswith('freight'):
+                    product_description = lines[j]
+                    break
+            break
 
     return {
         'document_type': 'BOL',
-        'shipper': shipper,
-        'consignee': consignee,
-        'port_of_loading': port_of_loading,
-        'port_of_discharge': port_of_discharge,
-        'bl_number': bl_number,
-        'container_numbers': ', '.join(container_numbers),
-        'flight_or_vessel': flight_or_vessel,
-        'product_description': product_description,
-        'raw_text': ocr_text
+        'shipper': shipper.strip(),
+        'consignee': consignee.strip(),
+        'port_of_loading': port_of_loading.strip(),
+        'port_of_discharge': port_of_discharge.strip(),
+        'bl_number': bl_number.strip(),
+        'container_numbers': container_numbers.strip(),
+        'flight_or_vessel': vessel.strip(),
+        'product_description': product_description.strip(),
+        'raw_text': text
     }
 
 def extract_fields(file_path):
-    print('=== extract_fields_universal.py (patched) ===')
-    try:
-        response = extract_text_from_file(file_path)
-        page_response = response.responses[0]
-        all_text = page_response.full_text_annotation.text
+    response = extract_text_from_pdf(file_path)
+    all_text = ""
+    for page_response in response.responses:
+        all_text += page_response.full_text_annotation.text + "\n"
 
-        fields = parse_universal_bol_fields(all_text, page_response)
-
-        for key in ['shipper', 'consignee', 'port_of_loading', 'port_of_discharge', 'flight_or_vessel', 'bl_number']:
-            print(f"DEBUG: {key} → {fields.get(key)}")
-
-        return fields
-    except Exception as e:
-        logging.error(f"Vision API failed: {e}")
-        return {'error': str(e)}
+    return parse_bol_fields(all_text, response.responses[0])
 
 
 
