@@ -49,7 +49,7 @@ def find_nearest_label_text(target_keywords: List[str], blocks: List[vision.Bloc
 
     for keyword in target_keywords:
         for text, center in candidates:
-            if keyword.lower() in text.lower():
+            if any(k.lower() in text.lower() for k in keyword.split()):
                 nearby = [
                     (t, y) for t, (x, y) in candidates
                     if abs(center[0] - x) < 150 and y > center[1]
@@ -121,12 +121,12 @@ def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
     
     return {
         'document_type': 'BOL',
-        'shipper': extract_first_line_near_label(boxes, ['shipper', 'exporter']),
+        'shipper': extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe']),  # Added partial match for 'shippe'
         'consignee': extract_first_line_near_label(boxes, ['consignee', 'consigned to']),
         'port_of_loading': extract_first_line_near_label(boxes, ['port of loading', 'place of receipt']),
         'port_of_discharge': extract_first_line_near_label(boxes, ['port of discharge', 'place of delivery']),
         'bl_number': bl_number,
-        'container_numbers': ', '.join(set(re.findall(r'\b[A-Z]{4}\d{7}\b', full_text))),
+        'container_numbers': ', '.join(set(re.findall(r'\b[A-Z]{4}\d{7}\b', full_text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', full_text, re.IGNORECASE))),
         'flight_or_vessel': extract_first_line_near_label(boxes, ['vessel', 'exporting carrier', 'flight']),
         'product_description': '',
         'raw_text': full_text
@@ -148,28 +148,28 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
                     word_text = ''.join(s.text for s in word.symbols)
                     for prefix in prefixes:
                         if prefix.lower() in word_text.lower():
-                            return ' '.join(''.join(s.text for s in w.symbols) for w in para.words)
+                            return ' '.join(''.join(s.text for s in w.symbols) for w in para.words).split('\n')[0]
         return ""
 
     def find_after_keyword(keywords: List[str], default: str = "") -> str:
         for i, line in enumerate(lines):
             for k in keywords:
                 if k.lower() in line.lower():
-                    if i + 1 < len(lines):
-                        return lines[i + 1]
+                    # Read until next section or end of block
+                    result = line
+                    for next_line in lines[i + 1:]:
+                        if any(next_k.lower() in next_line.lower() for next_k in ['notify party', 'intermediate consignee', 'pre-carriage']):
+                            break
+                        result += ' ' + next_line
+                    return result.strip()
         return default
 
     bl_number = extract_bl_number(text)
 
-    container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text))))
+    container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', text, re.IGNORECASE))))
 
-    shipper = find_after_keyword(['2. exporter', 'shipper'])
+    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
     consignee = find_after_keyword(['3. consigned to', 'consignee'])
-
-    if '\n' in shipper:
-        shipper = shipper.split('\n')[0]
-    if '\n' in consignee:
-        consignee = consignee.split('\n')[0]
 
     port_of_loading = find_after_keyword(['port of loading', 'port of export'])
     port_of_discharge = find_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
