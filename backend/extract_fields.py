@@ -64,19 +64,19 @@ def extract_bl_number(text: str) -> str:
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if any(label in line.upper() for label in ['B/L NUMBER', 'BILL OF LADING NUMBER', 'B/L NO.', 'BL', 'SA. B/L NUMBER', 'EXPORT REFERENCES']):
-            current_match = re.search(r'[A-Z0-9]{6,}', line)
+            current_match = re.search(r'[A-Z]{3}\d{6,}', line)
             if current_match:
                 return current_match.group(0)
             if i + 1 < len(lines):
-                next_match = re.search(r'[A-Z0-9]{6,}', lines[i + 1])
+                next_match = re.search(r'[A-Z]{3}\d{6,}', lines[i + 1])
                 if next_match:
                     return next_match.group(0)
-    # Fallback to general pattern, avoiding consignee-like matches
-    match = re.search(r'\b([A-Z]{3,}\d{6,})\b(?![^\n]*CONSIGNEE)', text)
+    # Fallback to general pattern with stricter criteria
+    match = re.search(r'\b[A-Z]{3}\d{6,}\b(?![^\n]*CONSIGNEE|\s*EXPORT)', text)
     return match.group(1) if match else ''
 
 def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) -> str:
-    """Get the full line of text below a label, filtering for BL number pattern."""
+    """Get the line with BL number pattern below a label."""
     label_boxes = [b for b in boxes if any(k.lower() in b['text'].lower() for k in label_keywords)]
     if not label_boxes:
         return ''
@@ -89,12 +89,11 @@ def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) 
     ]
     candidates.sort(key=lambda b: b['top'])
     if candidates:
-        # Filter for lines with potential BL number pattern
-        for candidate in candidates:
-            match = re.search(r'[A-Z0-9]{6,}', candidate['text'])
+        for candidate in candidates[:3]:  # Check up to 3 lines below
+            match = re.search(r'[A-Z]{3}\d{6,}', candidate['text'])
             if match:
                 return match.group(0)
-        return candidates[0]['text'].strip()
+        return candidates[0]['text'].strip() if candidates else ''
     return ''
 
 def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
