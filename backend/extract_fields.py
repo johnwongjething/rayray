@@ -51,13 +51,27 @@ def find_value_near_keyword(ocr_lines, keywords, direction='right', max_distance
     return ""
 
 FIELD_KEYWORDS = {
-    'shipper': ['Shipper', 'Exporter', 'Consignor'],
-    'consignee': ['Consignee', 'Consigned To', 'Notify Party'],
-    'port_of_loading': ['Port of Loading', 'POL'],
-    'port_of_discharge': ['Port of Discharge', 'POD', 'Place of Delivery'],
-    'vessel': ['Exporting Carrier', 'Vessel Name'],
-    'product_description': ['Description of Goods', 'Commodities', 'Nature of Goods'],
+    'shipper': [
+        'Shipper', 'Exporter', "Shipper's Name and Address", 'Exported By', 'Consignor', '2. EXPORTER'
+    ],
+    'consignee': [
+        'Consignee', "Consignee's Name and Address", 'Consigned To', 'Notify Party', '3. CONSIGNED TO'
+    ],
+    'port_of_loading': [
+        'Port of Loading', 'Port of Export', 'Place of Receipt', 'Port of Shipment'
+    ],
+    'port_of_discharge': [
+        'Port of Discharge', 'Foreign Port of Unloading', 'Place of Delivery', 'Port of Destination'
+    ],
+    'vessel': [
+        'Exporting Carrier', 'Carrier Name', 'Vessel Name', 'Vessel / Flight', 'Export Carrier'
+    ],
+    'product_description': [
+        'Description of Goods', 'Commodities', 'Nature of Goods', 'Goods Description'
+    ],
 }
+
+
 
 def get_ocr_lines(page_response):
     lines = []
