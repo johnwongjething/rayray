@@ -28,7 +28,8 @@ def extract_text_from_file(file_path):
 
 def extract_block(lines, keyword, max_lines=4, stop_keywords=None):
     for i, line in enumerate(lines):
-        if keyword.lower() in line.lower():
+        if re.match(fr"^{keyword}\b", line.strip(), re.IGNORECASE):
+            logging.info(f"[DEBUG] Matched keyword '{keyword}' at line {i}: {line.strip()}")
             block = []
             for j in range(i + 1, min(i + 1 + max_lines, len(lines))):
                 next_line = lines[j].strip()
@@ -41,6 +42,7 @@ def extract_block(lines, keyword, max_lines=4, stop_keywords=None):
 def extract_field_line(lines, keyword):
     for i, line in enumerate(lines):
         if keyword.lower() in line.lower():
+            logging.info(f"[DEBUG] Matched field '{keyword}' at line {i}: {line.strip()}")
             if ":" in line:
                 return line.split(":")[-1].strip()
             return lines[i + 1].strip() if i + 1 < len(lines) else ""
@@ -48,27 +50,28 @@ def extract_field_line(lines, keyword):
 
 def parse_universal_bol_fields(ocr_text, page_response):
     lines = [line.strip() for line in ocr_text.split('\n') if line.strip()]
-    shipper = extract_block(lines, "shipper", stop_keywords=["bill of lading", "consignee"])
-    consignee = extract_block(lines, "consignee", stop_keywords=["notify", "vessel", "export references"])
-    port_of_loading = extract_field_line(lines, "port of loading")
-    port_of_discharge = extract_field_line(lines, "port of discharge")
-    flight_or_vessel = extract_block(lines, "vessel", max_lines=1)
-    product_description = extract_block(lines, "description of goods", max_lines=6, stop_keywords=["freight"])
+    shipper = extract_block(lines, "SHIPPER", stop_keywords=["bill of lading", "consignee", "notify"])
+    consignee = extract_block(lines, "CONSIGNEE", stop_keywords=["notify", "vessel", "delivery", "place"])
+    port_of_loading = extract_field_line(lines, "PORT OF LOADING")
+    port_of_discharge = extract_field_line(lines, "PORT OF DISCHARGE")
+    flight_or_vessel = extract_block(lines, "VESSEL", max_lines=2)
+    product_description = extract_block(lines, "DESCRIPTION OF GOODS", max_lines=6, stop_keywords=["freight", "weight"])
 
     bl_number = ""
     for line in lines:
-        if re.search(r'BILL OF LADING NUMBER', line, re.IGNORECASE):
+        if re.search(r"BILL OF LADING NUMBER", line, re.IGNORECASE):
             idx = lines.index(line)
             if idx + 1 < len(lines):
                 bl_number = lines[idx + 1].strip()
+                logging.info(f"[DEBUG] Found BL Number after label: {bl_number}")
                 break
-        match = re.search(r'\b[A-Z]{3,}\d{6,}\b', line)
+        match = re.search(r"\b[A-Z]{3,}\d{6,}\b", line)
         if match and not bl_number:
             bl_number = match.group(0)
 
     container_numbers = set()
     for line in lines:
-        matches = re.findall(r'\b([A-Z]{4}\d{7})\b', line)
+        matches = re.findall(r"\b([A-Z]{4}\d{7})\b", line)
         container_numbers.update(matches)
 
     return {
@@ -85,7 +88,7 @@ def parse_universal_bol_fields(ocr_text, page_response):
     }
 
 def extract_fields(file_path):
-    print('=== extract_fields_universal.py ===')
+    print('=== extract_fields_universal.py (patched) ===')
     try:
         response = extract_text_from_file(file_path)
         page_response = response.responses[0]
@@ -93,15 +96,13 @@ def extract_fields(file_path):
 
         fields = parse_universal_bol_fields(all_text, page_response)
 
-        for key in ['shipper', 'consignee', 'port_of_loading', 'port_of_discharge', 'flight_or_vessel']:
+        for key in ['shipper', 'consignee', 'port_of_loading', 'port_of_discharge', 'flight_or_vessel', 'bl_number']:
             print(f"DEBUG: {key} → {fields.get(key)}")
 
         return fields
     except Exception as e:
         logging.error(f"Vision API failed: {e}")
         return {'error': str(e)}
-
-
 
 
 
