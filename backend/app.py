@@ -1094,8 +1094,7 @@ def outstanding_bills():
         SELECT 
             id, customer_name, bl_number,
             ctn_fee, service_fee, reserve_amount,
-            payment_method, reserve_status,
-            invoice_filename
+            payment_method, reserve_status, invoice_filename
         FROM bill_of_lading
         WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
            OR (payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled')
@@ -1110,22 +1109,9 @@ def outstanding_bills():
         ctn_fee = float(bill.get('ctn_fee') or 0)
         service_fee = float(bill.get('service_fee') or 0)
 
-        reserve_status = (bill.get('reserve_status') or '').strip().lower()
-        payment_method = (bill.get('payment_method') or '').strip().lower()
-
-        # Default: full invoice amount
-        outstanding_amount = ctn_fee + service_fee
-
-        # If Allinpay with Unsettled Reserve: only 15%
-        if payment_method == 'allinpay' and reserve_status == 'unsettled':
-            outstanding_amount = round(ctn_fee * 0.15 + service_fee * 0.15, 2)
-
-        bill['outstanding_amount'] = outstanding_amount
-        bills.append(bill)
-
-    cur.close()
-    conn.close()
-    return jsonify(bills)
+        # Force lowercase + trim for reliability
+        payment_method = str(bill.get('payment_method') or '').strip().lower()
+        reserve_status = str(bill.ge_
 
 
 # as at 1st July
