@@ -1,10 +1,15 @@
 import re
 import io
 import os
+import logging
 from google.cloud import vision
 from dotenv import load_dotenv
 from typing import List, Dict, Tuple
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# Load environment variables
 load_dotenv()
 if not os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
     raise ValueError("Google Cloud credentials not found in .env file")
@@ -21,7 +26,7 @@ def extract_text_from_pdf(pdf_path: str) -> vision.AnnotateFileResponse:
 
     Raises:
         FileNotFoundError: If the PDF file does not exist.
-        ValueError: If the API response is empty.
+        ValueError: If the input is not a PDF or API response is empty.
         Exception: For other API-related errors.
     """
     if not os.path.exists(pdf_path):
@@ -88,17 +93,23 @@ def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) 
 
 def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
     """Parse fields using spatial bounding box analysis."""
-    # Preprocess blocks into dictionary format
-    boxes = [
-        {
-            'text': ''.join(s.text for p in block.paragraphs for w in p.words for s in w.symbols),
-            'top': min(v.y for v in block.bounding_box.vertices),
-            'bottom': max(v.y for v in block.bounding_box.vertices),
-            'left': min(v.x for v in block.bounding_box.vertices),
-            'right': max(v.x for v in block.bounding_box.vertices)
-        }
-        for block in blocks
-    ]
+    boxes = []
+    for block in blocks:
+        # Check if block has valid bounding box and vertices
+        if not hasattr(block, 'bounding_box') or not block.bounding_box.vertices:
+            logging.warning(f"Skipping block with no valid bounding box: {''.join(s.text for p in block.paragraphs for w in p.words for s in w.symbols)}")
+            continue
+        try:
+            boxes.append({
+                'text': ''.join(s.text for p in block.paragraphs for w in p.words for s in w.symbols),
+                'top': min(v.y for v in block.bounding_box.vertices),
+                'bottom': max(v.y for v in block.bounding_box.vertices),
+                'left': min(v.x for v in block.bounding_box.vertices),
+                'right': max(v.x for v in block.bounding_box.vertices)
+            })
+        except ValueError as e:
+            logging.error(f"Error processing block: {str(e)}")
+            continue
     return {
         'document_type': 'BOL',
         'shipper': extract_first_line_near_label(boxes, ['shipper', 'exporter']),
@@ -197,13 +208,36 @@ def extract_fields(file_path: str) -> Dict:
     Returns:
         Dictionary containing extracted BOL fields.
     """
-    response = extract_text_from_pdf(file_path)
+    try:
+        response = extract_text_from_pdf(file_path)
+    except Exception as e:
+        logging.error(f"Failed to extract text from PDF: {str(e)}")
+        return {
+            'document_type': 'BOL',
+            'shipper': '', 'consignee': '', 'port_of_loading': '', 'port_of_discharge': '',
+            'bl_number': '', 'container_numbers': '', 'flight_or_vessel': '', 'product_description': '',
+            'raw_text': ''
+        }
+
     all_text = ""
     all_blocks = []
     for page_response in response.responses:
+        if not page_response.full_text_annotation:
+            logging.warning("No text annotations found in page response")
+            continue
         all_text += page_response.full_text_annotation.text + "\n"
         for page in page_response.full_text_annotation.pages:
             all_blocks.extend(page.blocks)
+
+    # If no blocks or text, return empty result
+    if not all_blocks or not all_text.strip():
+        logging.warning("No valid blocks or text extracted from PDF")
+        return {
+            'document_type': 'BOL',
+            'shipper': '', 'consignee': '', 'port_of_loading': '', 'port_of_discharge': '',
+            'bl_number': '', 'container_numbers': '', 'flight_or_vessel': '', 'product_description': '',
+            'raw_text': ''
+        }
 
     # Extract fields using both methods
     text_result = parse_bol_fields(all_text, response.responses[0])
