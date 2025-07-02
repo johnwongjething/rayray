@@ -170,33 +170,63 @@ function StaffStats({ t = x => x }) {
                     <TableCell>{t('ctnFee')}</TableCell>
                     <TableCell>{t('serviceFee')}</TableCell>
                     <TableCell>{t('total')}</TableCell>
+                    <TableCell>{t('outstanding')}</TableCell> {/* 🔹 Add this */}
                     <TableCell>{t('invoicePDF')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {outstanding.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{row.id}</TableCell>
-                      <TableCell>{row.customer_name}</TableCell>
-                      <TableCell>{row.bl_number}</TableCell>
-                      <TableCell>${row.ctn_fee ? Number(row.ctn_fee).toFixed(2) : '0.00'}</TableCell>
-                      <TableCell>${row.service_fee ? Number(row.service_fee).toFixed(2) : '0.00'}</TableCell>
-                          <TableCell>
-                            ${(
-                              (Number(row.ctn_fee) || 0) +
-                              (Number(row.service_fee) || 0)
-                             ).toFixed(2)}
-                            </TableCell>
-                      <TableCell>
-                        {row.invoice_filename ? (
-                          <Link href={`${API_BASE_URL}/uploads/${row.invoice_filename}`} target="_blank" rel="noopener noreferrer">
-                            {t('viewPDF')}
-                          </Link>
-                        ) : 'N/A'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+  {outstanding.map((row) => (
+    <TableRow key={row.id}>
+      <TableCell>{row.id}</TableCell>
+      <TableCell>{row.customer_name}</TableCell>
+      <TableCell>{row.bl_number}</TableCell>
+
+      {/* CTN Fee */}
+      <TableCell>
+        ${row.ctn_fee ? Number(row.ctn_fee).toFixed(2) : '0.00'}
+      </TableCell>
+
+      {/* Service Fee */}
+      <TableCell>
+        ${row.service_fee ? Number(row.service_fee).toFixed(2) : '0.00'}
+      </TableCell>
+
+      {/* Total Invoice Amount (Full amount: CTN + Service) */}
+      <TableCell>
+        ${(
+          (Number(row.ctn_fee) || 0) +
+          (Number(row.service_fee) || 0)
+        ).toFixed(2)}
+      </TableCell>
+
+      {/* Outstanding Amount (Adjusted: 15% if Allinpay Unsettled) */}
+      <TableCell>
+        ${row.outstanding_amount !== undefined
+          ? Number(row.outstanding_amount).toFixed(2)
+          : (
+              (Number(row.ctn_fee) || 0) +
+              (Number(row.service_fee) || 0)
+            ).toFixed(2)
+        }
+      </TableCell>
+
+      {/* Invoice PDF Link */}
+      <TableCell>
+        {row.invoice_filename ? (
+          <Link
+            href={`${API_BASE_URL}/uploads/${row.invoice_filename}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('viewPDF')}
+          </Link>
+        ) : 'N/A'}
+      </TableCell>
+    </TableRow>
+  ))}
+  
+</TableBody>
+
               </Table>
             </TableContainer>
           )}
