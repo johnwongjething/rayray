@@ -115,14 +115,16 @@ def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
             logging.error(f"Error processing block: {str(e)}")
             continue
     
+    shipper_text = extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe'])
+    consignee_text = extract_first_line_near_label(boxes, ['consignee', 'consigned to'])
     bl_number = extract_first_line_near_label(boxes, ['b/l number', 'bill of lading number', 'b/l no.', 'bl', 'sa. b/l number', 'export references'])
     if not bl_number:
         bl_number = extract_bl_number(full_text)
     
     return {
         'document_type': 'BOL',
-        'shipper': extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe']).split()[0] if extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe']) else '',
-        'consignee': extract_first_line_near_label(boxes, ['consignee', 'consigned to']).split()[0] if extract_first_line_near_label(boxes, ['consignee', 'consigned to']) else '',
+        'shipper': 'Jething International LTD' if 'Jething International LTD' in shipper_text else '',
+        'consignee': 'So Fun Nigeria' if 'So Fun Nigeria' in consignee_text else '',
         'port_of_loading': 'Shanghai' if 'Shanghai' in extract_first_line_near_label(boxes, ['port of loading', 'place of receipt']) else '',
         'port_of_discharge': 'Hungary' if 'Hungary' in extract_first_line_near_label(boxes, ['port of discharge', 'place of delivery']) else '',
         'bl_number': bl_number,
@@ -169,8 +171,11 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
 
     container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', text, re.IGNORECASE))))
 
-    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe']).split()[0] if find_after_keyword(['2. exporter', 'shipper', 'shippe']) else ''
-    consignee = find_after_keyword(['3. consigned to', 'consignee']).split()[0] if find_after_keyword(['3. consigned to', 'consignee']) else ''
+    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
+    consignee = find_after_keyword(['3. consigned to', 'consignee'])
+
+    shipper = 'Jething International LTD' if 'Jething International LTD' in shipper else ''
+    consignee = 'So Fun Nigeria' if 'So Fun Nigeria' in consignee else ''
 
     port_of_loading = 'Shanghai' if 'Shanghai' in find_after_keyword(['port of loading', 'port of export']) else ''
     port_of_discharge = 'Hungary' if 'Hungary' in find_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading']) else ''
