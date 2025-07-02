@@ -23,7 +23,7 @@ def extract_text_from_pdf(pdf_path):
         vision.AnnotateFileRequest(
             input_config=input_doc,
             features=[vision.Feature(type_=vision.Feature.Type.DOCUMENT_TEXT_DETECTION)]
-    ]
+    )]
     response = client.batch_annotate_files(requests=requests)
     return response.responses[0]
 
