@@ -1111,7 +1111,31 @@ def outstanding_bills():
 
         # Force lowercase + trim for reliability
         payment_method = str(bill.get('payment_method') or '').strip().lower()
-        reserve_status = str(bill.ge_
+        reserve_status = str(bill.get('reserve_status') or '').strip().lower()
+
+        # Default: full invoice amount
+        outstanding_amount = round(ctn_fee + service_fee, 2)
+
+        # Adjust for Allinpay Unsettled (15%)
+        if payment_method == 'allinpay' and reserve_status == 'unsettled':
+            outstanding_amount = round(ctn_fee * 0.15 + service_fee * 0.15, 2)
+
+        # Debug log to console
+        print("DEBUG BILL:", {
+            "bl_number": bill.get("bl_number"),
+            "payment_method": payment_method,
+            "reserve_status": reserve_status,
+            "ctn_fee": ctn_fee,
+            "service_fee": service_fee,
+            "calculated_outstanding": outstanding_amount,
+        })
+
+        bill['outstanding_amount'] = outstanding_amount
+        bills.append(bill)
+
+    cur.close()
+    conn.close()
+    return jsonify(bills)
 
 
 # as at 1st July
