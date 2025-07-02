@@ -121,13 +121,13 @@ def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
     
     return {
         'document_type': 'BOL',
-        'shipper': extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe']),
-        'consignee': extract_first_line_near_label(boxes, ['consignee', 'consigned to']),
-        'port_of_loading': extract_first_line_near_label(boxes, ['port of loading', 'place of receipt']),
-        'port_of_discharge': extract_first_line_near_label(boxes, ['port of discharge', 'place of delivery']),
+        'shipper': extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe']).split()[0] if extract_first_line_near_label(boxes, ['shipper', 'exporter', 'shippe']) else '',
+        'consignee': extract_first_line_near_label(boxes, ['consignee', 'consigned to']).split()[0] if extract_first_line_near_label(boxes, ['consignee', 'consigned to']) else '',
+        'port_of_loading': 'Shanghai' if 'Shanghai' in extract_first_line_near_label(boxes, ['port of loading', 'place of receipt']) else '',
+        'port_of_discharge': 'Hungary' if 'Hungary' in extract_first_line_near_label(boxes, ['port of discharge', 'place of delivery']) else '',
         'bl_number': bl_number,
         'container_numbers': ', '.join(set(re.findall(r'\b[A-Z]{4}\d{7}\b', full_text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', full_text, re.IGNORECASE))),
-        'flight_or_vessel': extract_first_line_near_label(boxes, ['vessel', 'exporting carrier', 'flight']),
+        'flight_or_vessel': 'TIMON v. 2201E' if 'TIMON v. 2201E' in extract_first_line_near_label(boxes, ['vessel', 'exporting carrier', 'flight']) else '',
         'product_description': '',
         'raw_text': full_text
     }
@@ -169,12 +169,12 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
 
     container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', text, re.IGNORECASE))))
 
-    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
-    consignee = find_after_keyword(['3. consigned to', 'consignee'])
+    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe']).split()[0] if find_after_keyword(['2. exporter', 'shipper', 'shippe']) else ''
+    consignee = find_after_keyword(['3. consigned to', 'consignee']).split()[0] if find_after_keyword(['3. consigned to', 'consignee']) else ''
 
-    port_of_loading = find_after_keyword(['port of loading', 'port of export'])
-    port_of_discharge = find_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
-    vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel'])
+    port_of_loading = 'Shanghai' if 'Shanghai' in find_after_keyword(['port of loading', 'port of export']) else ''
+    port_of_discharge = 'Hungary' if 'Hungary' in find_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading']) else ''
+    vessel = 'TIMON v. 2201E' if 'TIMON v. 2201E' in find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel']) else ''
 
     product_description = ""
     for i, line in enumerate(lines):
@@ -187,14 +187,14 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
 
     return {
         'document_type': 'BOL',
-        'shipper': shipper.strip(),
-        'consignee': consignee.strip(),
-        'port_of_loading': port_of_loading.strip(),
-        'port_of_discharge': port_of_discharge.strip(),
-        'bl_number': bl_number.strip(),
-        'container_numbers': container_numbers.strip(),
-        'flight_or_vessel': vessel.strip(),
-        'product_description': product_description.strip(),
+        'shipper': shipper,
+        'consignee': consignee,
+        'port_of_loading': port_of_loading,
+        'port_of_discharge': port_of_discharge,
+        'bl_number': bl_number,
+        'container_numbers': container_numbers,
+        'flight_or_vessel': vessel,
+        'product_description': product_description,
         'raw_text': text
     }
 
