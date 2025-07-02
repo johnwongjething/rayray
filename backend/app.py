@@ -1081,7 +1081,6 @@ def stats_summary():
 #         'total_payment_outstanding': total_payment_outstanding
 #     })
 
-
 @app.route('/api/stats/outstanding_bills')
 @jwt_required()
 def outstanding_bills():
@@ -1107,12 +1106,14 @@ def outstanding_bills():
         ctn_fee = float(record['ctn_fee'] or 0)
         service_fee = float(record['service_fee'] or 0)
 
-        # By default, show full outstanding
-        outstanding = ctn_fee + service_fee
+        # Force lowercase and trim for safe comparison
+        payment_method = (record.get('payment_method') or '').strip().lower()
+        reserve_status = (record.get('reserve_status') or '').strip().lower()
 
-        # For Allinpay with Unsettled reserve, show only 15%
-        if record.get('payment_method') == 'Allinpay' and record.get('reserve_status', '').strip().lower() == 'unsettled':
+        if payment_method == 'allinpay' and reserve_status == 'unsettled':
             outstanding = round(ctn_fee * 0.15 + service_fee * 0.15, 2)
+        else:
+            outstanding = round(ctn_fee + service_fee, 2)
 
         record['outstanding_amount'] = outstanding
         bills.append(record)
