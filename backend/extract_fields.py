@@ -60,11 +60,10 @@ def find_nearest_label_text(target_keywords: List[str], blocks: List[vision.Bloc
     return ""
 
 def extract_bl_number(text: str) -> str:
-    """Find the B/L number, looking near 'B/L NUMBER' or similar labels."""
+    """Find the B/L number, prioritizing near 'B/L' or 'BILL OF LADING' labels."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
-        if any(label in line.upper() for label in ['B/L NUMBER', 'BILL OF LADING NUMBER', 'BL', 'SA. B/L NUMBER']):
-            # Check the current line and the next line
+        if any(label in line.upper() for label in ['B/L NUMBER', 'BILL OF LADING NUMBER', 'B/L NO.', 'BL', 'SA. B/L NUMBER', 'EXPORT REFERENCES']):
             current_match = re.search(r'[A-Z0-9]{6,}', line)
             if current_match:
                 return current_match.group(0)
@@ -72,12 +71,12 @@ def extract_bl_number(text: str) -> str:
                 next_match = re.search(r'[A-Z0-9]{6,}', lines[i + 1])
                 if next_match:
                     return next_match.group(0)
-    # Fallback to general pattern
-    match = re.search(r'\b([A-Z]{3,}\d{6,})\b', text)
+    # Fallback to general pattern, avoiding consignee-like matches
+    match = re.search(r'\b([A-Z]{3,}\d{6,})\b(?![^\n]*CONSIGNEE)', text)
     return match.group(1) if match else ''
 
 def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) -> str:
-    """Get the full line of text below a label, not just the first word."""
+    """Get the full line of text below a label, filtering for BL number pattern."""
     label_boxes = [b for b in boxes if any(k.lower() in b['text'].lower() for k in label_keywords)]
     if not label_boxes:
         return ''
@@ -86,10 +85,17 @@ def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) 
     center_x = (label_box['left'] + label_box['right']) / 2
     candidates = [
         b for b in boxes 
-        if b['top'] > label_y and abs(((b['left'] + b['right']) / 2) - center_x) < 300  # Increased threshold
+        if b['top'] > label_y and abs(((b['left'] + b['right']) / 2) - center_x) < 300
     ]
     candidates.sort(key=lambda b: b['top'])
-    return candidates[0]['text'].strip() if candidates else ''  # Return full line
+    if candidates:
+        # Filter for lines with potential BL number pattern
+        for candidate in candidates:
+            match = re.search(r'[A-Z0-9]{6,}', candidate['text'])
+            if match:
+                return match.group(0)
+        return candidates[0]['text'].strip()
+    return ''
 
 def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
     """Extract fields using the position of text boxes."""
@@ -110,7 +116,7 @@ def parse_boxes(blocks: List[vision.Block], full_text: str) -> Dict:
             logging.error(f"Error processing block: {str(e)}")
             continue
     
-    bl_number = extract_first_line_near_label(boxes, ['b/l number', 'bill of lading number', 'bl', 'sa. b/l number'])
+    bl_number = extract_first_line_near_label(boxes, ['b/l number', 'bill of lading number', 'b/l no.', 'bl', 'sa. b/l number', 'export references'])
     if not bl_number:
         bl_number = extract_bl_number(full_text)
     
