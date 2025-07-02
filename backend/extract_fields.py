@@ -1,3 +1,4 @@
+
 import re
 import os
 import io
@@ -25,71 +26,50 @@ def extract_text_from_file(file_path):
     response = client.batch_annotate_files(requests=[request])
     return response.responses[0]
 
-def parse_bill_of_lading_fields(ocr_text, page_response):
+def extract_block(lines, keyword, max_lines=4, stop_keywords=None):
+    for i, line in enumerate(lines):
+        if keyword.lower() in line.lower():
+            block = []
+            for j in range(i + 1, min(i + 1 + max_lines, len(lines))):
+                next_line = lines[j].strip()
+                if stop_keywords and any(kw.lower() in next_line.lower() for kw in stop_keywords):
+                    break
+                block.append(next_line)
+            return " ".join(block)
+    return ""
+
+def extract_field_line(lines, keyword):
+    for i, line in enumerate(lines):
+        if keyword.lower() in line.lower():
+            if ":" in line:
+                return line.split(":")[-1].strip()
+            return lines[i + 1].strip() if i + 1 < len(lines) else ""
+    return ""
+
+def parse_universal_bol_fields(ocr_text, page_response):
     lines = [line.strip() for line in ocr_text.split('\n') if line.strip()]
-    n = len(lines)
-
-    def next_nonempty(idx):
-        for i in range(idx + 1, n):
-            if lines[i]:
-                return lines[i]
-        return ""
-
-    shipper = ""
-    for i, line in enumerate(lines):
-        if re.match(r'2\.?\s*EXPORTER', line, re.IGNORECASE):
-            shipper = next_nonempty(i)
-            break
-
-    consignee = ""
-    for i, line in enumerate(lines):
-        if re.match(r'3\.?\s*CONSIGNED TO', line, re.IGNORECASE):
-            name_lines = []
-            for j in range(i + 1, i + 4):
-                if j < len(lines):
-                    val = lines[j].strip()
-                    if not val or val.lower().startswith('c/o') or val.lower().startswith('tel'):
-                        break
-                    name_lines.append(val)
-            consignee = " ".join(name_lines)
-            break
-
-    port_of_loading = ""
-    for i, line in enumerate(lines):
-        if re.search(r'15\.?\s*PORT OF LOADING', line, re.IGNORECASE):
-            port_of_loading = next_nonempty(i)
-            break
-
-    port_of_discharge = ""
-    for i, line in enumerate(lines):
-        if re.search(r'16\.?\s*FOREIGN PORT OF UNLOADING', line, re.IGNORECASE):
-            port_of_discharge = next_nonempty(i)
-            break
-
-    flight_or_vessel = ""
-    for i, line in enumerate(lines):
-        if re.search(r'14\.?\s*EXPORTING CARRIER', line, re.IGNORECASE):
-            flight_or_vessel = next_nonempty(i)
-            break
+    shipper = extract_block(lines, "shipper", stop_keywords=["bill of lading", "consignee"])
+    consignee = extract_block(lines, "consignee", stop_keywords=["notify", "vessel", "export references"])
+    port_of_loading = extract_field_line(lines, "port of loading")
+    port_of_discharge = extract_field_line(lines, "port of discharge")
+    flight_or_vessel = extract_block(lines, "vessel", max_lines=1)
+    product_description = extract_block(lines, "description of goods", max_lines=6, stop_keywords=["freight"])
 
     bl_number = ""
-    bl_match = re.search(r'\b[A-Z]{3,}\d{6,}\b', ocr_text)
-    if bl_match:
-        bl_number = bl_match.group(0)
+    for line in lines:
+        if re.search(r'BILL OF LADING NUMBER', line, re.IGNORECASE):
+            idx = lines.index(line)
+            if idx + 1 < len(lines):
+                bl_number = lines[idx + 1].strip()
+                break
+        match = re.search(r'\b[A-Z]{3,}\d{6,}\b', line)
+        if match and not bl_number:
+            bl_number = match.group(0)
 
-    container_numbers = set(re.findall(r'\b([A-Z]{4}\d{7})\b', ocr_text))
-
-    product_description = ""
-    for i, line in enumerate(lines):
-        if re.search(r'DESCRIPTION OF COMMODITIES|DESCRIPTION OF GOODS', line, re.IGNORECASE):
-            desc_lines = []
-            for j in range(i + 1, min(i + 6, len(lines))):
-                val = lines[j].strip()
-                if val.lower().startswith('freight'):
-                    break
-                desc_lines.append(val)
-            product_description = " ".join(desc_lines).strip()
-            break
+    container_numbers = set()
+    for line in lines:
+        matches = re.findall(r'\b([A-Z]{4}\d{7})\b', line)
+        container_numbers.update(matches)
 
     return {
         'document_type': 'BOL',
@@ -104,84 +84,17 @@ def parse_bill_of_lading_fields(ocr_text, page_response):
         'raw_text': ocr_text
     }
 
-def parse_air_waybill_fields(ocr_text, page_response):
-    lines = [line.strip() for line in ocr_text.split('\n') if line.strip()]
-
-    def find_label_value(label_keywords):
-        for i, line in enumerate(lines):
-            for keyword in label_keywords:
-                if keyword.lower() in line.lower():
-                    for j in range(i + 1, i + 4):
-                        if j < len(lines):
-                            value = lines[j].strip()
-                            if value:
-                                return re.split(r'[^A-Z\-/ ]+', value)[0].strip()
-        return ""
-
-    def find_first_company_line(start_keywords, stop_keywords):
-        collecting = False
-        for line in lines:
-            if any(kw.lower() in line.lower() for kw in start_keywords):
-                collecting = True
-                continue
-            if collecting:
-                if any(stop.lower() in line.lower() for stop in stop_keywords):
-                    break
-                if re.search(r'[A-Z]{2,}', line):
-                    return line.strip()
-        return ""
-
-    awb_number = re.search(r'\b\d{3}-\d{7,8}\b', ocr_text)
-    awb_number = awb_number.group(0) if awb_number else ""
-
-    shipper = find_first_company_line(["Shipper's Name and Address"], ["Consignee"])
-    consignee = find_first_company_line(["Consignee's Name and Address"], ["Issuing Carrier", "Agent"])
-    port_of_loading = find_label_value(["Airport of Departure"])
-    port_of_discharge = find_label_value(["Airport of Destination"])
-    flight_or_vessel = find_label_value(["Requested Flight/Date", "Exporting Carrier"])
-
-    container_numbers = ""
-    pkg_match = re.search(r'(\d{1,3})\s*(pieces|pkgs|packages|pcs)', ocr_text, re.IGNORECASE)
-    if pkg_match:
-        container_numbers = pkg_match.group(1)
-
-    product_description = ""
-    for i, line in enumerate(lines):
-        if "Nature and Quantity" in line or "Description of Goods" in line:
-            for j in range(i + 1, min(i + 5, len(lines))):
-                val = lines[j].strip()
-                if val and not val.lower().startswith("freight"):
-                    product_description = val
-                    break
-            break
-
-    return {
-        'document_type': 'AWB',
-        'bl_number': awb_number,
-        'shipper': shipper,
-        'consignee': consignee,
-        'port_of_loading': port_of_loading,
-        'port_of_discharge': port_of_discharge,
-        'container_numbers': container_numbers,
-        'flight_or_vessel': flight_or_vessel,
-        'product_description': product_description,
-        'raw_text': ocr_text
-    }
-
 def extract_fields(file_path):
-    print('=== extract_fields function called ===')
+    print('=== extract_fields_universal.py ===')
     try:
         response = extract_text_from_file(file_path)
         page_response = response.responses[0]
         all_text = page_response.full_text_annotation.text
 
-        if 'AIR WAYBILL' in all_text.upper():
-            fields = parse_air_waybill_fields(all_text, page_response)
-        else:
-            fields = parse_bill_of_lading_fields(all_text, page_response)
+        fields = parse_universal_bol_fields(all_text, page_response)
 
-        print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
-        print("product_description:", fields.get("product_description", ""))
+        for key in ['shipper', 'consignee', 'port_of_loading', 'port_of_discharge', 'flight_or_vessel']:
+            print(f"DEBUG: {key} → {fields.get(key)}")
 
         return fields
     except Exception as e:
