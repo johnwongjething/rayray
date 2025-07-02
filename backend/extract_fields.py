@@ -76,8 +76,8 @@ def extract_bl_number(text: str) -> str:
             match = re.search(r'\b\d{9,}\b', line)
             if match:
                 return match.group(0)
-    # Fallback to general pattern
-    match = re.search(r'\b[A-Z]{3}\d{6,}\b|\b\d{9,}\b', text)
+    # Fallback to general pattern, excluding DUNS-like numbers
+    match = re.search(r'\b[A-Z]{3}\d{6,}\b|\b\d{9,}\b(?![^\n]*DUNS)', text)
     return match.group(0) if match else ''
 
 def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) -> str:
@@ -116,7 +116,7 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
                 if k.lower() in line.lower():
                     for j in range(i + 1, len(lines)):
                         next_line = lines[j].strip()
-                        if next_line and not re.match(r'^[A-Za-z]+\s+(Service|Agreement)$', next_line):
+                        if next_line and not re.match(r'^[A-Za-z]+\s+(Service|Agreement)$', next_line) and (re.match(r'^[A-Z][a-zA-Z\s]+(CO\.|LTD|INC)$', next_line) or re.match(r'^[A-Z][a-zA-Z\s]+$', next_line)):
                             return next_line.split('\n')[0].strip()
         return default
 
@@ -126,7 +126,11 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
                 if k.lower() in line.lower():
                     next_line = lines[i + 1] if i + 1 < len(lines) else ""
                     if next_line:
-                        return next_line.split(',')[0].strip()
+                        parts = next_line.split(',')
+                        for part in parts:
+                            part = part.strip()
+                            if re.match(r'^[A-Z\s]+$', part) and not re.match(r'^\d{1,2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)$', part):
+                                return part
         return default
 
     bl_number = extract_bl_number(text)
@@ -136,7 +140,7 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
     shipper = find_after_keyword(['2. exporter', 'shipper', 'shipper/exporter'])
     consignee = find_after_keyword(['3. consigned to', 'consignee'])
 
-    port_of_loading = find_port_after_keyword(['port of loading', 'place of receipt', 'laden on board'])
+    port_of_loading = find_port_after_keyword(['port of loading', 'place of receipt', 'place and date of issue', 'laden on board'])
     port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
     vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel'])
 
@@ -254,7 +258,7 @@ def extract_fields(file_path: str) -> Dict:
         return {'error': str(e)}
 
 if __name__ == "__main__":
-    result = extract_fields("your_pdf_file.pdf")
+    result = extract_fields("ootb_04_sw_03_SD-1.PDF")
     print(result)
 
 # import re
