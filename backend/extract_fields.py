@@ -1,3 +1,4 @@
+
 import re
 import io
 import os
@@ -6,62 +7,44 @@ from google.cloud import vision
 from dotenv import load_dotenv
 from typing import List, Dict, Tuple
 
-# Set up logging to show messages if something goes wrong
 logging.basicConfig(level=logging.INFO)
-
-# Load environment settings (like Google Cloud credentials)
 load_dotenv()
-print("DEBUG: GOOGLE_APPLICATION_CREDENTIALS =", os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-if not os.getenv('GOOGLE_APPLICATION_CREDENTIALS') or not os.path.exists(os.getenv('GOOGLE_APPLICATION_CREDENTIALS')):
-    raise RuntimeError('Google Vision credentials not found. Please set GOOGLE_APPLICATION_CREDENTIALS in your .env file.')
 client = vision.ImageAnnotatorClient()
 
 def extract_text_from_pdf(pdf_path: str) -> vision.AnnotateFileResponse:
-    """Get text from a PDF using Google Cloud Vision."""
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"PDF file not found: {pdf_path}")
     if not pdf_path.lower().endswith('.pdf'):
         raise ValueError("Input file must be a PDF")
-    
-    try:
-        with io.open(pdf_path, 'rb') as f:
-            content = f.read()
-        input_doc = vision.InputConfig(content=content, mime_type='application/pdf')
-        feature = vision.Feature(type_=vision.Feature.Type.DOCUMENT_TEXT_DETECTION)
-        request = vision.AnnotateFileRequest(input_config=input_doc, features=[feature])
-        response = client.batch_annotate_files(requests=[request])
-        if not response.responses:
-            raise ValueError("No response received from Vision API")
-        return response.responses[0]
-    except Exception as e:
-        raise Exception(f"Error processing PDF with Vision API: {str(e)}")
+    with io.open(pdf_path, 'rb') as f:
+        content = f.read()
+    input_doc = vision.InputConfig(content=content, mime_type='application/pdf')
+    feature = vision.Feature(type_=vision.Feature.Type.DOCUMENT_TEXT_DETECTION)
+    request = vision.AnnotateFileRequest(input_config=input_doc, features=[feature])
+    response = client.batch_annotate_files(requests=[request])
+    if not response.responses:
+        raise ValueError("No response received from Vision API")
+    return response.responses[0]
 
 def get_center(bbox: vision.BoundingPoly) -> Tuple[float, float]:
-    """Find the center of a text box."""
     vertices = bbox.vertices
     return sum(v.x for v in vertices) / 4, sum(v.y for v in vertices) / 4
 
 def find_nearest_label_text(target_keywords: List[str], blocks: List[vision.Block]) -> str:
-    """Find text near a label with specific keywords."""
     candidates = []
     for block in blocks:
         text = ''.join(s.text for p in block.paragraphs for w in p.words for s in w.symbols)
         candidates.append((text.strip(), get_center(block.bounding_box)))
-
     for keyword in target_keywords:
         for text, center in candidates:
             if any(k.lower() in text.lower() for k in keyword.split()):
-                nearby = [
-                    (t, y) for t, (x, y) in candidates
-                    if abs(center[0] - x) < 150 and y > center[1]
-                ]
+                nearby = [(t, y) for t, (x, y) in candidates if abs(center[0] - x) < 150 and y > center[1]]
                 nearby.sort(key=lambda b: b[1])
                 if nearby:
                     return nearby[0][0]
     return ""
 
 def extract_bl_number(text: str) -> str:
-    """Find the B/L number or AWB number, prioritizing near 'B/L' or 'AWB' labels."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if any(label in line.upper() for label in ['B/L NO.', 'B/L NUMBER', 'BILL OF LADING NUMBER', 'B/L NO', 'BL NO']):
@@ -76,12 +59,10 @@ def extract_bl_number(text: str) -> str:
             match = re.search(r'\b\d{3}-\d{7,8}\b', line)
             if match:
                 return match.group(0)
-    # Fallback to general pattern
     match = re.search(r'\b[A-Z]{3}\d{6,}\b|\b\d{3}-\d{7,8}\b', text)
     return match.group(0) if match else ''
 
 def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) -> str:
-    """Get the line with BL number pattern below a label."""
     label_boxes = [b for b in boxes if any(k.lower() in b['text'].lower() for k in label_keywords)]
     if not label_boxes:
         return ''
@@ -94,12 +75,14 @@ def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) 
     ]
     candidates.sort(key=lambda b: b['top'])
     if candidates:
-        for candidate in candidates[:3]:  # Check up to 3 lines below
+        for candidate in candidates[:3]:
             text = candidate['text'].strip()
-            if not any(k.lower() in text.lower() for k in label_keywords):  # Exclude label itself
+            if not any(k.lower() in text.lower() for k in label_keywords):
                 return text
         return candidates[0]['text'].strip() if candidates else ''
     return ''
+
+
 
 def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) -> Dict:
     """Extract fields for Bill of Lading."""
