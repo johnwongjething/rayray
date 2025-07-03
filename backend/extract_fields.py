@@ -239,7 +239,7 @@ def extract_fields(file_path: str) -> Dict:
         logging.error(f"Extraction failed: {e}")
         return {'error': str(e)}
 
-if _name_ == "_main_":
+if __name__ == "_main_":
     # Test with different carriers
     test_files = {
         "maersk_bol.pdf": "Maersk B/L",
