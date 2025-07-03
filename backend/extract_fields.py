@@ -122,8 +122,10 @@ def parse_air_waybill_fields(text: str) -> Dict:
 
 def extract_fields(file_path: str) -> Dict:
     try:
-        response = extract_text_from_pdf(file_path)
-        full_text = response.full_text_annotation.text
+        batch_response = extract_text_from_pdf(file_path)
+        page_response = batch_response.responses[0]
+        full_text = page_response.full_text_annotation.text
+
         if 'AIR WAYBILL' in full_text.upper():
             return parse_air_waybill_fields(full_text)
         elif 'CMA CGM' in full_text.upper():
