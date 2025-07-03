@@ -1,5 +1,3 @@
-# If you see ModuleNotFoundError: No module named 'pytz', run: pip install pytz
-
 import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS, cross_origin
@@ -39,8 +37,6 @@ allowed_origins = [
     'https://terryraylogicticsco.xyz',
     'https://www.terryraylogicticsco.xyz',
 ]
-
-
 # Add environment variable for additional origins
 env_origins = os.getenv('ALLOWED_ORIGINS', '').split(',')
 if env_origins and env_origins[0]:

@@ -1,23 +1,22 @@
 from flask import Blueprint, request, jsonify
-    from email_utils import send_simple_email
-    import logging
-    import hmac
-    import hashlib
-    import json
-    from datetime import datetime
-    import re
-    from config import EmailConfig, get_db_conn
-    import pytz
+from email_utils import send_simple_email
+import logging
+import hmac
+import hashlib
+import json
+from datetime import datetime
+import re
+from config import EmailConfig, get_db_conn
+import pytz
 
-    payment_webhook = Blueprint('payment_webhook', __name__)
-
+payment_webhook = Blueprint('payment_webhook', __name__)
     # Configure logging
-    logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
     # Secret key for signature verification (set by your bank)
-    SECRET_KEY = "your_secret_key_here"  # Move to .env or config
+SECRET_KEY = "your_secret_key_here"  # Move to .env or config
 
-    def verify_signature(payload, signature):
+def verify_signature(payload, signature):
         """Verify the HMAC signature of the webhook payload."""
         computed_signature = hmac.new(
             SECRET_KEY.encode('utf-8'),
@@ -27,7 +26,7 @@ from flask import Blueprint, request, jsonify
         return hmac.compare_digest(computed_signature, signature)
 
     @payment_webhook.route('/payment', methods=['POST'])
-    def handle_payment_webhook():
+def handle_payment_webhook():
         """Handle bank payment notification webhook."""
         try:
             # Get the raw payload and headers
@@ -139,7 +138,7 @@ Terry Ray Logistics
             logger.error(f"Webhook processing failed: {str(e)}")
             return jsonify({"error": "Internal server error"}), 500
 
-    def process_payment(transaction_id, amount, currency, status):
+def process_payment(transaction_id, amount, currency, status):
         """Process the payment and link to B/L."""
         logger.info(f"Processing payment for B/L {transaction_id} with amount {amount} {currency}, status {status}")
         # Add your business logic here
