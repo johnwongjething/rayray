@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from email_utils import send_unique_number_email  # Removed send_simple_email
+from email_utils import send_unique_number_email  # Replaced send_simple_email with send_unique_number_email
 import logging
 import hmac
 import hashlib
@@ -63,7 +63,7 @@ def handle_payment_webhook():
         conn = get_db_conn()
         cur = conn.cursor()
         cur.execute("""
-            SELECT ctn_fee, service_fee, unique_number, invoice_total, completed_at
+            SELECT ctn_fee, service_fee, unique_number
             FROM bill_of_lading
             WHERE unique_number = %s
         """, (transaction_id,))
@@ -75,10 +75,10 @@ def handle_payment_webhook():
             conn.close()
             return jsonify({"error": "Bill not found"}), 404
 
-        ctn_fee, service_fee, unique_number, invoice_total, existing_completed_at = bill
+        ctn_fee, service_fee, unique_number = bill
         ctn_fee = float(ctn_fee or 0)
         service_fee = float(service_fee or 0)
-        invoice_total = float(invoice_total or (ctn_fee + service_fee))
+        invoice_total = ctn_fee + service_fee
 
         # Determine payment phase
         received_85 = abs(amount - (invoice_total * 0.85)) < 0.01
@@ -95,10 +95,6 @@ def handle_payment_webhook():
         """
         params = ['Allinpay', 'Paid and CTN Valid']
 
-        if not existing_completed_at:
-            update_query += ", completed_at = %s, "
-            params.append(hk_now)
-
         if is_initial:
             reserve_amount = invoice_total - (invoice_total * 0.85)
             update_query += ", reserve_status = %s, reserve_amount = %s, payment_status = %s, allinpay_85_received_at = %s"
@@ -114,7 +110,6 @@ Transaction Details:
 - Transaction ID: {transaction_id}
 - Your CTN Number: {unique_number}  <!-- Highlighted as the most important -->
 - Total Invoice Amount: {invoice_total} {currency}
-- Date: {hk_now.strftime('%Y-%m-%d %H:%M:%S AEST')}
 
 If you have any questions, please contact support.
 
@@ -147,6 +142,7 @@ def process_payment(transaction_id, amount, currency, status):
     logger.info(f"Processing payment for B/L {transaction_id} with amount {amount} {currency}, status {status}")
     # Add your business logic here
     pass
+
 
 # from flask import Blueprint, request, jsonify
 # from email_utils import send_simple_email
