@@ -43,6 +43,17 @@ def extract_bl_number(text: str) -> str:
         return match.group(0)
     return ""
 
+def find_after_keyword(lines: List[str], keywords: List[str], exclude: List[str] = []) -> str:
+    for i, line in enumerate(lines):
+        for k in keywords:
+            if k.lower() in line.lower():
+                for j in range(i + 1, i + 5):
+                    if j < len(lines):
+                        val = lines[j].strip()
+                        if val and not any(ex in val.upper() for ex in exclude):
+                            return val
+    return ""
+
 def parse_maersk_fields(text: str) -> Dict:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     shipper, consignee = "", ""
@@ -58,13 +69,8 @@ def parse_maersk_fields(text: str) -> Dict:
                     consignee = lines[j]
                     break
     bl_number = extract_bl_number(text)
-    port_of_loading = ''
-    port_of_discharge = ''
-    for i, line in enumerate(lines):
-        if 'Port of Loading' in line:
-            port_of_loading = line.split(':')[-1].strip()
-        if 'Port of Discharge' in line:
-            port_of_discharge = line.split(':')[-1].strip()
+    port_of_loading = find_after_keyword(lines, ['Port of Loading'], ["FREIGHT"])
+    port_of_discharge = find_after_keyword(lines, ['Port of Discharge'])
     container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text))))
     vessel_match = re.search(r'Vessel.*\n(.*?)\n', text, re.IGNORECASE)
     vessel = vessel_match.group(1).strip() if vessel_match else ''
@@ -85,13 +91,7 @@ def parse_maersk_fields(text: str) -> Dict:
 
 def parse_cma_fields(text: str) -> Dict:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    port_of_loading = ''
-    for i, line in enumerate(lines):
-        if 'PORT OF LOADING' in line.upper():
-            for j in range(i + 1, i + 3):
-                if j < len(lines) and re.search(r'[A-Z]{2,}', lines[j]) and not any(x in lines[j] for x in ["TO BE PAID", "FREIGHT"]):
-                    port_of_loading = lines[j].strip()
-                    break
+    port_of_loading = find_after_keyword(lines, ['PORT OF LOADING'], ["TO BE PAID", "FREIGHT"])
     return {
         'port_of_loading': port_of_loading
     }
