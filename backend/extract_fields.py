@@ -32,10 +32,8 @@ def extract_bl_number(text: str) -> str:
         for label in candidate_labels:
             if label.lower() in line.lower():
                 match = re.search(r'[:\s\-]*([A-Z0-9\-]{8,})', line)
-                if match:
-                    candidate = match.group(1).strip()
-                    if candidate.upper() != 'LADING':
-                        return candidate
+                if match and match.group(1).upper() != 'LADING':
+                    return match.group(1).strip()
                 if i + 1 < len(lines):
                     match2 = re.search(r'\b[A-Z0-9\-]{8,}\b', lines[i + 1])
                     if match2 and match2.group(0).upper() != 'LADING':
@@ -45,53 +43,33 @@ def extract_bl_number(text: str) -> str:
         return match.group(0)
     return ""
 
-def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) -> Dict:
-    text = ocr_text
+def parse_maersk_fields(text: str) -> Dict:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-
-    def find_after_keyword(keywords: List[str], default: str = "") -> str:
-        for i, line in enumerate(lines):
-            for k in keywords:
-                if k.lower() in line.lower():
-                    next_line = lines[i + 1] if i + 1 < len(lines) else ""
-                    if next_line:
-                        return next_line.split('\n')[0].strip()
-        return default
-
-    def find_port_after_keyword(keywords: List[str], default: str = "") -> str:
-        for i, line in enumerate(lines):
-            for k in keywords:
-                if k.lower() in line.lower():
-                    next_line = lines[i + 1] if i + 1 < len(lines) else ""
-                    if next_line:
-                        return next_line.split(',')[0].strip()
-        return default
-
-    bl_number = extract_bl_number(text)
-    container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text))))
-    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
-    consignee = find_after_keyword(['3. consigned to', 'consignee'])
-    port_of_loading = find_port_after_keyword(['port of loading', 'port of export', 'place of receipt'])
-    port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
-    vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel'])
-
-    # Override for CMA CGM
-    if 'CMA CGM' in text.upper():
-        port_match = re.search(r'PORT OF LOADING\s*[\n:]?\s*(.+)', text, re.IGNORECASE)
-        if port_match:
-            possible_port = port_match.group(1).strip()
-            if "FREIGHT" not in possible_port.upper() and len(possible_port) <= 30:
-                port_of_loading = possible_port
-
-    product_description = ""
+    shipper, consignee = "", ""
     for i, line in enumerate(lines):
-        if 'description of commodities' in line.lower() or 'description of goods' in line.lower():
+        if 'Shipper' in line:
             for j in range(i + 1, i + 5):
-                if j < len(lines) and not lines[j].lower().startswith('freight'):
-                    product_description = lines[j]
+                if j < len(lines) and 'MAERSK LINE' not in lines[j].upper():
+                    shipper = lines[j].strip()
                     break
-            break
-
+        if 'Consignee' in line:
+            for j in range(i + 1, i + 4):
+                if j < len(lines) and re.search(r'[A-Z]{2,}', lines[j]):
+                    consignee = lines[j]
+                    break
+    bl_number = extract_bl_number(text)
+    port_of_loading = ''
+    port_of_discharge = ''
+    for i, line in enumerate(lines):
+        if 'Port of Loading' in line:
+            port_of_loading = line.split(':')[-1].strip()
+        if 'Port of Discharge' in line:
+            port_of_discharge = line.split(':')[-1].strip()
+    container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text))))
+    vessel_match = re.search(r'Vessel.*\n(.*?)\n', text, re.IGNORECASE)
+    vessel = vessel_match.group(1).strip() if vessel_match else ''
+    product_match = re.search(r'Kind of Packages.*\n(.*?)\n', text, re.IGNORECASE)
+    product_description = product_match.group(1).strip() if product_match else ''
     return {
         'document_type': 'BOL',
         'shipper': shipper,
@@ -105,95 +83,261 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
         'raw_text': text
     }
 
-def parse_air_waybill_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) -> Dict:
-    lines = [line.strip() for line in ocr_text.splitlines() if line.strip()]
-
-    def find_label_value(label_keywords):
-        for i, line in enumerate(lines):
-            for keyword in label_keywords:
-                if keyword.lower() in line.lower():
-                    for j in range(i + 1, i + 4):
-                        if j < len(lines):
-                            value = lines[j].strip()
-                            if value:
-                                return re.split(r'[^A-Z\-/ ]+', value)[0].strip()
-        return ""
-
-    def find_first_company_line(start_keywords, stop_keywords):
-        collecting = False
-        for line in lines:
-            if any(kw.lower() in line.lower() for kw in start_keywords):
-                collecting = True
-                continue
-            if collecting:
-                if any(stop.lower() in line.lower() for stop in stop_keywords):
-                    break
-                if re.search(r'[A-Z]{2,}', line):
-                    return line.strip()
-        return ""
-
-    awb_number = ""
-    awb_match = re.search(r'\b\d{3}-\d{7,8}\b', ocr_text)
-    if awb_match:
-        awb_number = awb_match.group(0)
-
-    shipper = find_first_company_line(["Shipper's Name and Address"], ["Consignee"])
-    consignee = find_first_company_line(["Consignee's Name and Address"], ["Issuing Carrier", "Agent"])
-    port_of_loading = find_label_value(["Airport of Departure"])
-    port_of_discharge = find_label_value(["Airport of Destination"])
-    container_numbers = ""
-    pkg_match = re.search(r'(\d{1,3})\s*(pieces|pkgs|packages|pcs)', ocr_text, re.IGNORECASE)
-    if pkg_match:
-        container_numbers = pkg_match.group(1)
-
-    flight_or_vessel = find_label_value(["Requested Flight/Date", "Exporting Carrier"])
-    product_description = ""
+def parse_cma_fields(text: str) -> Dict:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    port_of_loading = ''
     for i, line in enumerate(lines):
-        if "Nature and Quantity" in line or "Description of Goods" in line:
-            for j in range(i + 1, min(i + 5, len(lines))):
-                val = lines[j].strip()
-                if val and not val.lower().startswith("freight"):
-                    product_description = val
+        if 'PORT OF LOADING' in line.upper():
+            for j in range(i + 1, i + 3):
+                if j < len(lines) and re.search(r'[A-Z]{2,}', lines[j]) and not any(x in lines[j] for x in ["TO BE PAID", "FREIGHT"]):
+                    port_of_loading = lines[j].strip()
                     break
-            break
+    return {
+        'port_of_loading': port_of_loading
+    }
 
+def parse_air_waybill_fields(text: str) -> Dict:
+    awb_match = re.search(r'\b\d{3}-\d{7,8}\b', text)
+    awb_number = awb_match.group(0) if awb_match else ""
+    shipper = re.search(r"Shipper's Name and Address\n(.*?)\n", text, re.DOTALL)
+    consignee = re.search(r"Consignee's Name and Address\n(.*?)\n", text, re.DOTALL)
+    port_of_loading = re.search(r'Airport of Departure.*\n(.*?)\n', text)
+    port_of_discharge = re.search(r'Airport of Destination.*\n(.*?)\n', text)
+    container_numbers = ''
+    container_match = re.search(r'(\d{1,3})\s*(pieces|pkgs|packages|pcs)', text, re.IGNORECASE)
+    if container_match:
+        container_numbers = container_match.group(1)
     return {
         'document_type': 'AWB',
         'bl_number': awb_number,
-        'shipper': shipper,
-        'consignee': consignee,
-        'port_of_loading': port_of_loading,
-        'port_of_discharge': port_of_discharge,
+        'shipper': shipper.group(1).strip() if shipper else '',
+        'consignee': consignee.group(1).strip() if consignee else '',
+        'port_of_loading': port_of_loading.group(1).strip() if port_of_loading else '',
+        'port_of_discharge': port_of_discharge.group(1).strip() if port_of_discharge else '',
         'container_numbers': container_numbers,
-        'flight_or_vessel': flight_or_vessel,
-        'product_description': product_description,
-        'raw_text': ocr_text
+        'flight_or_vessel': '',
+        'product_description': '',
+        'raw_text': text
     }
 
 def extract_fields(file_path: str) -> Dict:
-    print('=== extract_fields function called ===')
     try:
         response = extract_text_from_pdf(file_path)
-        all_text = ""
-        for page_response in response.responses:
-            all_text += page_response.full_text_annotation.text + "\n"
-
-        if 'AIR WAYBILL' in all_text.upper():
-            fields = parse_air_waybill_fields(all_text, response.responses[0])
+        full_text = response.full_text_annotation.text
+        if 'AIR WAYBILL' in full_text.upper():
+            return parse_air_waybill_fields(full_text)
+        elif 'CMA CGM' in full_text.upper():
+            cma_result = parse_maersk_fields(full_text)
+            cma_result['port_of_loading'] = parse_cma_fields(full_text)['port_of_loading']
+            return cma_result
+        elif 'MAERSK LINE' in full_text.upper():
+            return parse_maersk_fields(full_text)
         else:
-            fields = parse_bol_fields(all_text, response.responses[0])
-
-        print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
-        print("product_description:", fields.get("product_description", ""))
-
-        return fields
+            return parse_maersk_fields(full_text)
     except Exception as e:
-        logging.error(f"Vision API failed: {e}.")
+        logging.error(f"Extraction failed: {e}")
         return {'error': str(e)}
 
 if __name__ == "__main__":
     result = extract_fields("your_pdf_file.pdf")
     print(result)
+
+# import re
+# import io
+# import os
+# import logging
+# from google.cloud import vision
+# from dotenv import load_dotenv
+# from typing import List, Dict, Tuple
+
+# logging.basicConfig(level=logging.INFO)
+# load_dotenv()
+# client = vision.ImageAnnotatorClient()
+
+# def extract_text_from_pdf(pdf_path: str) -> vision.AnnotateFileResponse:
+#     if not os.path.exists(pdf_path):
+#         raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+#     if not pdf_path.lower().endswith('.pdf'):
+#         raise ValueError("Input file must be a PDF")
+#     with io.open(pdf_path, 'rb') as f:
+#         content = f.read()
+#     input_doc = vision.InputConfig(content=content, mime_type='application/pdf')
+#     feature = vision.Feature(type_=vision.Feature.Type.DOCUMENT_TEXT_DETECTION)
+#     request = vision.AnnotateFileRequest(input_config=input_doc, features=[feature])
+#     response = client.batch_annotate_files(requests=[request])
+#     if not response.responses:
+#         raise ValueError("No response received from Vision API")
+#     return response.responses[0]
+
+# def extract_bl_number(text: str) -> str:
+#     lines = text.splitlines()
+#     candidate_labels = ['Waybill No.', 'Document No.', 'Bill of Lading Number', 'B/L No.', 'BL NO', 'B/L NO']
+#     for i, line in enumerate(lines):
+#         for label in candidate_labels:
+#             if label.lower() in line.lower():
+#                 match = re.search(r'[:\s\-]*([A-Z0-9\-]{8,})', line)
+#                 if match:
+#                     candidate = match.group(1).strip()
+#                     if candidate.upper() != 'LADING':
+#                         return candidate
+#                 if i + 1 < len(lines):
+#                     match2 = re.search(r'\b[A-Z0-9\-]{8,}\b', lines[i + 1])
+#                     if match2 and match2.group(0).upper() != 'LADING':
+#                         return match2.group(0)
+#     match = re.search(r'\b\d{10,}\b|\b[A-Z]{3}\d{6,}\b|\b\d{3}-\d{7,8}\b', text)
+#     if match and match.group(0).upper() != 'LADING':
+#         return match.group(0)
+#     return ""
+
+# def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) -> Dict:
+#     text = ocr_text
+#     lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+#     def find_after_keyword(keywords: List[str], default: str = "") -> str:
+#         for i, line in enumerate(lines):
+#             for k in keywords:
+#                 if k.lower() in line.lower():
+#                     next_line = lines[i + 1] if i + 1 < len(lines) else ""
+#                     if next_line:
+#                         return next_line.split('\n')[0].strip()
+#         return default
+
+#     def find_port_after_keyword(keywords: List[str], default: str = "") -> str:
+#         for i, line in enumerate(lines):
+#             for k in keywords:
+#                 if k.lower() in line.lower():
+#                     next_line = lines[i + 1] if i + 1 < len(lines) else ""
+#                     if next_line:
+#                         return next_line.split(',')[0].strip()
+#         return default
+
+#     bl_number = extract_bl_number(text)
+#     container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text))))
+#     shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
+#     consignee = find_after_keyword(['3. consigned to', 'consignee'])
+#     port_of_loading = find_port_after_keyword(['port of loading', 'port of export', 'place of receipt'])
+#     port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
+#     vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel'])
+
+#     # Override for CMA CGM
+#     if 'CMA CGM' in text.upper():
+#         port_match = re.search(r'PORT OF LOADING\s*[\n:]?\s*(.+)', text, re.IGNORECASE)
+#         if port_match:
+#             possible_port = port_match.group(1).strip()
+#             if "FREIGHT" not in possible_port.upper() and len(possible_port) <= 30:
+#                 port_of_loading = possible_port
+
+#     product_description = ""
+#     for i, line in enumerate(lines):
+#         if 'description of commodities' in line.lower() or 'description of goods' in line.lower():
+#             for j in range(i + 1, i + 5):
+#                 if j < len(lines) and not lines[j].lower().startswith('freight'):
+#                     product_description = lines[j]
+#                     break
+#             break
+
+#     return {
+#         'document_type': 'BOL',
+#         'shipper': shipper,
+#         'consignee': consignee,
+#         'port_of_loading': port_of_loading,
+#         'port_of_discharge': port_of_discharge,
+#         'bl_number': bl_number,
+#         'container_numbers': container_numbers,
+#         'flight_or_vessel': vessel,
+#         'product_description': product_description,
+#         'raw_text': text
+#     }
+
+# def parse_air_waybill_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) -> Dict:
+#     lines = [line.strip() for line in ocr_text.splitlines() if line.strip()]
+
+#     def find_label_value(label_keywords):
+#         for i, line in enumerate(lines):
+#             for keyword in label_keywords:
+#                 if keyword.lower() in line.lower():
+#                     for j in range(i + 1, i + 4):
+#                         if j < len(lines):
+#                             value = lines[j].strip()
+#                             if value:
+#                                 return re.split(r'[^A-Z\-/ ]+', value)[0].strip()
+#         return ""
+
+#     def find_first_company_line(start_keywords, stop_keywords):
+#         collecting = False
+#         for line in lines:
+#             if any(kw.lower() in line.lower() for kw in start_keywords):
+#                 collecting = True
+#                 continue
+#             if collecting:
+#                 if any(stop.lower() in line.lower() for stop in stop_keywords):
+#                     break
+#                 if re.search(r'[A-Z]{2,}', line):
+#                     return line.strip()
+#         return ""
+
+#     awb_number = ""
+#     awb_match = re.search(r'\b\d{3}-\d{7,8}\b', ocr_text)
+#     if awb_match:
+#         awb_number = awb_match.group(0)
+
+#     shipper = find_first_company_line(["Shipper's Name and Address"], ["Consignee"])
+#     consignee = find_first_company_line(["Consignee's Name and Address"], ["Issuing Carrier", "Agent"])
+#     port_of_loading = find_label_value(["Airport of Departure"])
+#     port_of_discharge = find_label_value(["Airport of Destination"])
+#     container_numbers = ""
+#     pkg_match = re.search(r'(\d{1,3})\s*(pieces|pkgs|packages|pcs)', ocr_text, re.IGNORECASE)
+#     if pkg_match:
+#         container_numbers = pkg_match.group(1)
+
+#     flight_or_vessel = find_label_value(["Requested Flight/Date", "Exporting Carrier"])
+#     product_description = ""
+#     for i, line in enumerate(lines):
+#         if "Nature and Quantity" in line or "Description of Goods" in line:
+#             for j in range(i + 1, min(i + 5, len(lines))):
+#                 val = lines[j].strip()
+#                 if val and not val.lower().startswith("freight"):
+#                     product_description = val
+#                     break
+#             break
+
+#     return {
+#         'document_type': 'AWB',
+#         'bl_number': awb_number,
+#         'shipper': shipper,
+#         'consignee': consignee,
+#         'port_of_loading': port_of_loading,
+#         'port_of_discharge': port_of_discharge,
+#         'container_numbers': container_numbers,
+#         'flight_or_vessel': flight_or_vessel,
+#         'product_description': product_description,
+#         'raw_text': ocr_text
+#     }
+
+# def extract_fields(file_path: str) -> Dict:
+#     print('=== extract_fields function called ===')
+#     try:
+#         response = extract_text_from_pdf(file_path)
+#         all_text = ""
+#         for page_response in response.responses:
+#             all_text += page_response.full_text_annotation.text + "\n"
+
+#         if 'AIR WAYBILL' in all_text.upper():
+#             fields = parse_air_waybill_fields(all_text, response.responses[0])
+#         else:
+#             fields = parse_bol_fields(all_text, response.responses[0])
+
+#         print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
+#         print("product_description:", fields.get("product_description", ""))
+
+#         return fields
+#     except Exception as e:
+#         logging.error(f"Vision API failed: {e}.")
+#         return {'error': str(e)}
+
+# if __name__ == "__main__":
+#     result = extract_fields("your_pdf_file.pdf")
+#     print(result)
 
 
 
