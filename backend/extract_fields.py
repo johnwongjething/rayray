@@ -45,22 +45,31 @@ def find_nearest_label_text(target_keywords: List[str], blocks: List[vision.Bloc
     return ""
 
 def extract_bl_number(text: str) -> str:
+    """Improved logic to extract B/L or Waybill number, avoiding false positives like 'LADING'."""
     lines = text.splitlines()
+    candidate_labels = ['Waybill No.', 'Document No.', 'Bill of Lading Number', 'B/L No.', 'BL NO', 'B/L NO']
+
     for i, line in enumerate(lines):
-        if any(label in line.upper() for label in ['B/L NO.', 'B/L NUMBER', 'BILL OF LADING NUMBER', 'B/L NO', 'BL NO']):
-            match = re.search(r'(?:B/L\s*No\.\s*)?(\w{3}\d{6,})', line)
-            if match:
-                return match.group(1)
-            if i + 1 < len(lines):
-                next_match = re.search(r'\w{3}\d{6,}', lines[i + 1])
-                if next_match:
-                    return next_match.group(0)
-        elif 'AWB' in line.upper():
-            match = re.search(r'\b\d{3}-\d{7,8}\b', line)
-            if match:
-                return match.group(0)
-    match = re.search(r'\b[A-Z]{3}\d{6,}\b|\b\d{3}-\d{7,8}\b', text)
-    return match.group(0) if match else ''
+        for label in candidate_labels:
+            if label.lower() in line.lower():
+                # Extract a clean alphanumeric string after the label
+                match = re.search(r'[:\s\-]*([A-Z0-9\-]{8,})', line)
+                if match:
+                    candidate = match.group(1).strip()
+                    if candidate.upper() != 'LADING':
+                        return candidate
+                # Also check next line in case number is there
+                if i + 1 < len(lines):
+                    match2 = re.search(r'\b[A-Z0-9\-]{8,}\b', lines[i + 1])
+                    if match2 and match2.group(0).upper() != 'LADING':
+                        return match2.group(0)
+
+    # Fallback (very relaxed)
+    match = re.search(r'\b\d{10,}\b|\b[A-Z]{3}\d{6,}\b|\b\d{3}-\d{7,8}\b', text)
+    if match and match.group(0).upper() != 'LADING':
+        return match.group(0)
+
+    return ""
 
 def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) -> str:
     label_boxes = [b for b in boxes if any(k.lower() in b['text'].lower() for k in label_keywords)]
