@@ -127,7 +127,7 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
     shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
     consignee = find_after_keyword(['3. consigned to', 'consignee'])
     port_of_loading = find_port_after_keyword([
-    'port of loading', 'port of export', 'place of receipt', 'place of receipt/date'
+    'port of loading', 'port of export', 'place of receipt', 'place of receipt/date', '(13) Place of Receipt/Date'
 ])
 
     port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
