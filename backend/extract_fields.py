@@ -101,22 +101,15 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
     for page in page_response.full_text_annotation.pages:
         for block in page.blocks:
             blocks.append(block)
-    
+
     def find_after_keyword(keywords: List[str], default: str = "") -> str:
         for i, line in enumerate(lines):
             for k in keywords:
                 if k.lower() in line.lower():
-                    # Look ahead up to 4 lines
-                    for j in range(i + 1, i + 5):
-                         if j < len(lines):
-                            candidate = lines[j].strip()
-                        # Skip empty lines or known generic headers
-                            if not candidate or candidate.lower() in ['a joint service agreement', 'non-negotiable']:
-                                continue
-                        # Return first uppercase line that looks like a company
-                            if re.search(r'[A-Z]{2,}', candidate):
-                                return candidate
-            return default
+                    next_line = lines[i + 1] if i + 1 < len(lines) else ""
+                    if next_line:
+                        return next_line.split('\n')[0].strip()
+        return default
 
     def find_port_after_keyword(keywords: List[str], default: str = "") -> str:
         for i, line in enumerate(lines):
@@ -136,6 +129,7 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
     port_of_loading = find_port_after_keyword([
     'port of loading', 'port of export', 'place of receipt', 'place of receipt/date'
 ])
+
     port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
     vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel'])
 
