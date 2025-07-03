@@ -25,24 +25,6 @@ def extract_text_from_pdf(pdf_path: str) -> vision.AnnotateFileResponse:
         raise ValueError("No response received from Vision API")
     return response.responses[0]
 
-def get_center(bbox: vision.BoundingPoly) -> Tuple[float, float]:
-    vertices = bbox.vertices
-    return sum(v.x for v in vertices) / 4, sum(v.y for v in vertices) / 4
-
-def find_nearest_label_text(target_keywords: List[str], blocks: List[vision.Block]) -> str:
-    candidates = []
-    for block in blocks:
-        text = ''.join(s.text for p in block.paragraphs for w in p.words for s in w.symbols)
-        candidates.append((text.strip(), get_center(block.bounding_box)))
-    for keyword in target_keywords:
-        for text, center in candidates:
-            if any(k.lower() in text.lower() for k in keyword.split()):
-                nearby = [(t, y) for t, (x, y) in candidates if abs(center[0] - x) < 150 and y > center[1]]
-                nearby.sort(key=lambda b: b[1])
-                if nearby:
-                    return nearby[0][0]
-    return ""
-
 def extract_bl_number(text: str) -> str:
     lines = text.splitlines()
     candidate_labels = ['Waybill No.', 'Document No.', 'Bill of Lading Number', 'B/L No.', 'BL NO', 'B/L NO']
@@ -63,33 +45,9 @@ def extract_bl_number(text: str) -> str:
         return match.group(0)
     return ""
 
-def extract_first_line_near_label(boxes: List[Dict], label_keywords: List[str]) -> str:
-    label_boxes = [b for b in boxes if any(k.lower() in b['text'].lower() for k in label_keywords)]
-    if not label_boxes:
-        return ''
-    label_box = label_boxes[0]
-    label_y = (label_box['top'] + label_box['bottom']) / 2
-    center_x = (label_box['left'] + label_box['right']) / 2
-    candidates = [
-        b for b in boxes 
-        if b['top'] > label_y and abs(((b['left'] + b['right']) / 2) - center_x) < 300
-    ]
-    candidates.sort(key=lambda b: b['top'])
-    if candidates:
-        for candidate in candidates[:3]:
-            text = candidate['text'].strip()
-            if not any(k.lower() in text.lower() for k in label_keywords):
-                return text
-        return candidates[0]['text'].strip() if candidates else ''
-    return ''
-
 def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) -> Dict:
     text = ocr_text
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    blocks = []
-    for page in page_response.full_text_annotation.pages:
-        for block in page.blocks:
-            blocks.append(block)
 
     def find_after_keyword(keywords: List[str], default: str = "") -> str:
         for i, line in enumerate(lines):
@@ -110,23 +68,20 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
         return default
 
     bl_number = extract_bl_number(text)
-    container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', text, re.IGNORECASE))))
-
+    container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text))))
     shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
     consignee = find_after_keyword(['3. consigned to', 'consignee'])
-    port_of_loading = find_port_after_keyword([
-        'port of loading', 'port of export', 'place of receipt', 'place of receipt/date', '(13) Place of Receipt/Date'
-    ])
+    port_of_loading = find_port_after_keyword(['port of loading', 'port of export', 'place of receipt'])
     port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
     vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel'])
 
-    # Special Maersk logic: override shipper if MAERSK LINE is used as header
-    if 'MAERSK LINE' in text.upper():
-        match = re.search(r'MAERSK LINE\s+(.*?)(?=BILL OF LADING)', text, re.DOTALL | re.IGNORECASE)
-        if match:
-            real_shipper = match.group(1).strip().split('\n')[0]
-            if real_shipper and len(real_shipper) < 100:
-                shipper = real_shipper
+    # Override for CMA CGM
+    if 'CMA CGM' in text.upper():
+        port_match = re.search(r'PORT OF LOADING\s*[\n:]?\s*(.+)', text, re.IGNORECASE)
+        if port_match:
+            possible_port = port_match.group(1).strip()
+            if "FREIGHT" not in possible_port.upper() and len(possible_port) <= 30:
+                port_of_loading = possible_port
 
     product_description = ""
     for i, line in enumerate(lines):
@@ -150,6 +105,71 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
         'raw_text': text
     }
 
+def parse_air_waybill_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) -> Dict:
+    lines = [line.strip() for line in ocr_text.splitlines() if line.strip()]
+
+    def find_label_value(label_keywords):
+        for i, line in enumerate(lines):
+            for keyword in label_keywords:
+                if keyword.lower() in line.lower():
+                    for j in range(i + 1, i + 4):
+                        if j < len(lines):
+                            value = lines[j].strip()
+                            if value:
+                                return re.split(r'[^A-Z\-/ ]+', value)[0].strip()
+        return ""
+
+    def find_first_company_line(start_keywords, stop_keywords):
+        collecting = False
+        for line in lines:
+            if any(kw.lower() in line.lower() for kw in start_keywords):
+                collecting = True
+                continue
+            if collecting:
+                if any(stop.lower() in line.lower() for stop in stop_keywords):
+                    break
+                if re.search(r'[A-Z]{2,}', line):
+                    return line.strip()
+        return ""
+
+    awb_number = ""
+    awb_match = re.search(r'\b\d{3}-\d{7,8}\b', ocr_text)
+    if awb_match:
+        awb_number = awb_match.group(0)
+
+    shipper = find_first_company_line(["Shipper's Name and Address"], ["Consignee"])
+    consignee = find_first_company_line(["Consignee's Name and Address"], ["Issuing Carrier", "Agent"])
+    port_of_loading = find_label_value(["Airport of Departure"])
+    port_of_discharge = find_label_value(["Airport of Destination"])
+    container_numbers = ""
+    pkg_match = re.search(r'(\d{1,3})\s*(pieces|pkgs|packages|pcs)', ocr_text, re.IGNORECASE)
+    if pkg_match:
+        container_numbers = pkg_match.group(1)
+
+    flight_or_vessel = find_label_value(["Requested Flight/Date", "Exporting Carrier"])
+    product_description = ""
+    for i, line in enumerate(lines):
+        if "Nature and Quantity" in line or "Description of Goods" in line:
+            for j in range(i + 1, min(i + 5, len(lines))):
+                val = lines[j].strip()
+                if val and not val.lower().startswith("freight"):
+                    product_description = val
+                    break
+            break
+
+    return {
+        'document_type': 'AWB',
+        'bl_number': awb_number,
+        'shipper': shipper,
+        'consignee': consignee,
+        'port_of_loading': port_of_loading,
+        'port_of_discharge': port_of_discharge,
+        'container_numbers': container_numbers,
+        'flight_or_vessel': flight_or_vessel,
+        'product_description': product_description,
+        'raw_text': ocr_text
+    }
+
 def extract_fields(file_path: str) -> Dict:
     print('=== extract_fields function called ===')
     try:
@@ -159,12 +179,13 @@ def extract_fields(file_path: str) -> Dict:
             all_text += page_response.full_text_annotation.text + "\n"
 
         if 'AIR WAYBILL' in all_text.upper():
-            raise NotImplementedError("AWB parsing not implemented in this version.")
+            fields = parse_air_waybill_fields(all_text, response.responses[0])
         else:
             fields = parse_bol_fields(all_text, response.responses[0])
 
         print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
         print("product_description:", fields.get("product_description", ""))
+
         return fields
     except Exception as e:
         logging.error(f"Vision API failed: {e}.")
