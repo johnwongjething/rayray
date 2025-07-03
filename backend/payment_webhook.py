@@ -64,7 +64,7 @@ def handle_payment_webhook():
             cur.execute("""
                 SELECT ctn_fee, service_fee, unique_number
                 FROM bill_of_lading
-                WHERE bl_number = %s
+                WHERE unique_number = %s
             """, (transaction_id,))
             bill = cur.fetchone()
             cur.close()
