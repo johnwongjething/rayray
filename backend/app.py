@@ -45,7 +45,10 @@ env_origins = os.getenv('ALLOWED_ORIGINS', '').split(',')
 if env_origins and env_origins[0]:
     allowed_origins.extend([origin.strip() for origin in env_origins])
 
-CORS(app, origins=allowed_origins, supports_credentials=True)
+ORS(app, origins=allowed_origins, supports_credentials=True)
+
+from payment_webhook import payment_webhook
+app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
 
 @app.route('/api/ping')
 def ping():
@@ -1050,36 +1053,6 @@ def stats_summary():
 
 
 
-# @app.route('/api/stats/summary')
-# @jwt_required()
-# def stats_summary():
-#     user = json.loads(get_jwt_identity())
-#     if user['role'] not in ['staff', 'admin']:
-#         return jsonify({'error': 'Unauthorized'}), 403
-#     conn = get_db_conn()
-#     cur = conn.cursor()
-#     cur.execute("SELECT COUNT(*) FROM bill_of_lading")
-#     total = cur.fetchone()[0]
-#     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status='Completed'")
-#     completed = cur.fetchone()[0]
-#     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status!='Completed'")
-#     pending = cur.fetchone()[0]
-#     cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading")
-#     total_invoice_amount = float(cur.fetchone()[0] or 0)
-#     cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading WHERE status='Completed'")
-#     total_payment_received = float(cur.fetchone()[0] or 0)
-#     cur.execute("SELECT COALESCE(SUM(service_fee),0) FROM bill_of_lading WHERE status!='Completed'")
-#     total_payment_outstanding = float(cur.fetchone()[0] or 0)
-#     cur.close()
-#     conn.close()
-#     return jsonify({
-#         'total_bills': total,
-#         'completed_bills': completed,
-#         'pending_bills': pending,
-#         'total_invoice_amount': total_invoice_amount,
-#         'total_payment_received': total_payment_received,
-#         'total_payment_outstanding': total_payment_outstanding
-#     })
 @app.route('/api/stats/outstanding_bills')
 @jwt_required()
 def outstanding_bills():
@@ -1136,46 +1109,6 @@ def outstanding_bills():
     cur.close()
     conn.close()
     return jsonify(bills)
-
-
-# as at 1st July
-# @app.route('/api/stats/outstanding_bills')
-# @jwt_required()
-# def outstanding_bills():
-#     user = json.loads(get_jwt_identity())
-#     if user['role'] not in ['staff', 'admin']:
-#         return jsonify({'error': 'Unauthorized'}), 403
-#     conn = get_db_conn()
-#     cur = conn.cursor()
-#     cur.execute("""
-#     SELECT id, customer_name, bl_number, ctn_fee, service_fee, reserve_amount, invoice_filename
-#     FROM bill_of_lading
-#     WHERE status IN ('Awaiting Bank In', 'Invoice Sent')
-#        OR (payment_method = 'Allinpay' AND LOWER(TRIM(reserve_status)) = 'unsettled')
-# """)
-#     rows = cur.fetchall()
-#     columns = [desc[0] for desc in cur.description]
-#     bills = [dict(zip(columns, row)) for row in rows]
-#     cur.close()
-#     conn.close()
-#     return jsonify(bills)
-
-
-# @app.route('/api/stats/outstanding_bills')
-# @jwt_required()
-# def outstanding_bills():
-#     user = json.loads(get_jwt_identity())
-#     if user['role'] not in ['staff', 'admin']:
-#         return jsonify({'error': 'Unauthorized'}), 403
-#     conn = get_db_conn()
-#     cur = conn.cursor()
-#     cur.execute("SELECT id, customer_name, bl_number, service_fee, invoice_filename FROM bill_of_lading WHERE status!='Completed'")
-#     rows = cur.fetchall()
-#     columns = [desc[0] for desc in cur.description]
-#     bills = [dict(zip(columns, row)) for row in rows]
-#     cur.close()
-#     conn.close()
-#     return jsonify(bills)
 
 @app.route('/api/request_password_reset', methods=['POST'])
 def request_password_reset():
