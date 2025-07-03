@@ -25,7 +25,7 @@ def verify_signature(payload, signature):
         ).hexdigest()
         return hmac.compare_digest(computed_signature, signature)
 
-    @payment_webhook.route('/payment', methods=['POST'])
+@payment_webhook.route('/payment', methods=['POST'])
 def handle_payment_webhook():
         """Handle bank payment notification webhook."""
         try:
