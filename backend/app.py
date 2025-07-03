@@ -43,10 +43,14 @@ if env_origins and env_origins[0]:
     allowed_origins.extend([origin.strip() for origin in env_origins])
 
 CORS(app, origins=allowed_origins, supports_credentials=True)
-
-
 from payment_webhook import payment_webhook
+from payment_link import payment_link
+
 app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
+app.register_blueprint(payment_link)
+
+
+
 
 @app.route('/api/ping')
 def ping():
