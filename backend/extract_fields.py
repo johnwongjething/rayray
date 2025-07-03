@@ -109,26 +109,24 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
                         return next_line.split(',')[0].strip()
         return default
 
-    carrier = ""
-    if "MAERSK LINE" in text.upper():
-        carrier = "maersk"
-
     bl_number = extract_bl_number(text)
-    container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text))))
+    container_numbers = ', '.join(sorted(set(re.findall(r'([A-Z]{4}\d{7})', text) + re.findall(r'(?:CONTAINER|MRKU|Seal)\s*[NO.]?\s*(\w{4}\d{7})', text, re.IGNORECASE))))
 
-    if carrier == "maersk":
-        match = re.search(r'Shipper\s+MAERSK LINE\s+(.+?)\n', text, re.DOTALL | re.IGNORECASE)
-        if match:
-            shipper = match.group(1).strip().split("\n")[0]
-        else:
-            shipper = find_after_keyword(['shipper'])
-    else:
-        shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
-
+    shipper = find_after_keyword(['2. exporter', 'shipper', 'shippe'])
     consignee = find_after_keyword(['3. consigned to', 'consignee'])
-    port_of_loading = find_port_after_keyword(['port of loading', 'port of export', 'place of receipt', 'place of receipt/date', '(13) Place of Receipt/Date'])
+    port_of_loading = find_port_after_keyword([
+        'port of loading', 'port of export', 'place of receipt', 'place of receipt/date', '(13) Place of Receipt/Date'
+    ])
     port_of_discharge = find_port_after_keyword(['port of discharge', 'place of delivery', 'foreign port of unloading'])
     vessel = find_after_keyword(['exporting carrier', 'vessel', 'ocean vessel'])
+
+    # Special Maersk logic: override shipper if MAERSK LINE is used as header
+    if 'MAERSK LINE' in text.upper():
+        match = re.search(r'MAERSK LINE\s+(.*?)(?=BILL OF LADING)', text, re.DOTALL | re.IGNORECASE)
+        if match:
+            real_shipper = match.group(1).strip().split('\n')[0]
+            if real_shipper and len(real_shipper) < 100:
+                shipper = real_shipper
 
     product_description = ""
     for i, line in enumerate(lines):
@@ -151,6 +149,32 @@ def parse_bol_fields(ocr_text: str, page_response: vision.AnnotateFileResponse) 
         'product_description': product_description,
         'raw_text': text
     }
+
+def extract_fields(file_path: str) -> Dict:
+    print('=== extract_fields function called ===')
+    try:
+        response = extract_text_from_pdf(file_path)
+        all_text = ""
+        for page_response in response.responses:
+            all_text += page_response.full_text_annotation.text + "\n"
+
+        if 'AIR WAYBILL' in all_text.upper():
+            raise NotImplementedError("AWB parsing not implemented in this version.")
+        else:
+            fields = parse_bol_fields(all_text, response.responses[0])
+
+        print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
+        print("product_description:", fields.get("product_description", ""))
+        return fields
+    except Exception as e:
+        logging.error(f"Vision API failed: {e}.")
+        return {'error': str(e)}
+
+if __name__ == "__main__":
+    result = extract_fields("your_pdf_file.pdf")
+    print(result)
+
+
 
 # import re
 # import io
