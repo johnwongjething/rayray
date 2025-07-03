@@ -40,6 +40,7 @@ allowed_origins = [
     'https://www.terryraylogicticsco.xyz',
 ]
 
+
 # Add environment variable for additional origins
 env_origins = os.getenv('ALLOWED_ORIGINS', '').split(',')
 if env_origins and env_origins[0]:
