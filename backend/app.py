@@ -62,6 +62,7 @@ app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
 app.register_blueprint(payment_link)
 
 @app.route('/api/ping')
+@limiter.limit("5 per minute")  # Added for testing rate limiting
 def ping():
     return {"message": "pong"}, 200
 
@@ -79,12 +80,76 @@ def upload_file():
         return jsonify({"error": "No file part"}), 400
     file = request.files['file']
     if file and file.filename.endswith('.pdf'):
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], file.filename))
-        return jsonify({"message": "File uploaded"}), 200
+        filename = file.filename
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return jsonify({"message": "File uploaded", "filename": filename}), 200
     return jsonify({"error": "Invalid file type"}), 400
 
+@app.route('/api/bills', methods=['GET'])
+def get_bills():
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 50))
+    offset = (page - 1) * page_size
+    bl_number = request.args.get('bl_number')
+    status = request.args.get('status')
+    date = request.args.get('date')
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    where_clauses = []
+    params = []
+    if bl_number:
+        where_clauses.append('bl_number ILIKE %s')
+        params.append(f'%{bl_number}%')
+    if status:
+        where_clauses.append('status = %s')
+        params.append(status)
+    if date:
+        start_date, end_date = get_hk_date_range(date)
+        where_clauses.append('created_at >= %s AND created_at < %s')
+        params.extend([start_date, end_date])
+    where_sql = ' AND '.join(where_clauses) if where_clauses else ''
+
+    count_query = f'SELECT COUNT(*) FROM bill_of_lading {where_sql}'
+    cur.execute(count_query, tuple(params))
+    total_count = cur.fetchone()[0]
+
+    query = f'''
+        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
+               flight_or_vessel, product_description, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list
+        FROM bill_of_lading
+        {where_sql}
+        ORDER BY id DESC
+        LIMIT %s OFFSET %s
+    '''
+    cur.execute(query, tuple(params) + (page_size, offset))
+    rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    bills = []
+    for row in rows:
+        bill_dict = dict(zip(columns, row))
+        if bill_dict.get('customer_email') is not None:
+            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+        if bill_dict.get('customer_phone') is not None:
+            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+        bills.append(bill_dict)
+
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        'bills': bills,
+        'total': total_count,
+        'page': page,
+        'page_size': page_size
+    })
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 @app.route('/api/register', methods=['POST'])
-@limiter.limit("50 per hour" if is_development else "20 per hour")  # More lenient in development
+@limiter.limit("50 per hour" if is_development else "20 per hour")
 @cross_origin()
 def register():
     data = request.get_json()
@@ -288,10 +353,6 @@ def bills_by_date():
         },
         'entries': entries
     })
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/api/bill/<int:bill_id>/upload_receipt', methods=['POST'])
 def upload_receipt(bill_id):
