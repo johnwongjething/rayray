@@ -35,6 +35,13 @@ csrf = CSRFProtect(app)
 # Add ProxyFix middleware to handle X-Forwarded-For headers
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
+# Initialize Rate Limiter with memory storage
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="memory://",  # Use in-memory storage
+)
+
 
 if os.getenv('FLASK_ENV') == 'production':
     @app.before_request
@@ -77,12 +84,6 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
 jwt = JWTManager(app)
 
-# Initialize Rate Limiter with memory storage
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    storage_uri="memory://",  # Use in-memory storage
-)
 
 # Custom error handler for rate limiting
 @app.errorhandler(429)
