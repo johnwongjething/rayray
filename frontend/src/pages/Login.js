@@ -16,11 +16,12 @@ function Login({ t = x => x }) {
       const res = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important: send cookies and receive JWT in cookie
         body: JSON.stringify(formData)
       });
       const data = await res.json();
       if (res.ok) {
-        localStorage.setItem('token', data.access_token);
+        // Optionally store in localStorage for role/username, but JWT is in cookie
         localStorage.setItem('role', data.role);
         localStorage.setItem('username', data.username);
         if (data.customer_name) localStorage.setItem('customer_name', data.customer_name);

@@ -89,7 +89,6 @@ const translations = {
     invoicePDF: "Invoice PDF",
     viewPDF: "View PDF",
     paidAt: "Paid At",
-    actions: "Actions",
     customerID: "Customer ID",
     createDate: "Create Date",
     contactSuccessProfessional: "We have received your message, our team will be in contact with you within 24 hours, thank you.",
@@ -113,8 +112,8 @@ const translations = {
     welcomeSubtitle: "Click on Learn More to Check Out Our CTN Service",
     about: "About Us",
     aboutContent: "We are the sole agent to process your Nigeria Cargo Tracking Note. We promise a top service to get your Cargo Tracking Note processed within 24 hours. If you don't have a account yet, please click the register to proceed",
-    
-    // New missing translations
+
+    // Additional and missing translations for system completeness
     exportToPDF: "EXPORT TO PDF",
     completedBillsAccountPage: "Completed Bills - Account Page",
     search: "Search",
@@ -154,8 +153,7 @@ const translations = {
     failedToApproveUser: "Failed to approve user",
     searchBills: "Search Bills",
     customerId: "Customer ID",
-    createDate: "Create Date",
-    outstandingPayments: "Outstanding Payments",
+    outstanding: "Outstanding",
     maxFilesError: "You can upload a maximum of 5 files at once.",
     notLoggedIn: "You must be logged in to upload files.",
     uploadingFiles: "Uploading Files...",
@@ -175,7 +173,6 @@ const translations = {
     markedCompleted: "Marked as completed",
     uniqueEmailSent: "CTN Number email sent",
     emailFailed: "Email failed",
-    ctnNumber: "CTN Number",
     selectPDFBill: "SELECT PDF FILE - BILL OF LADING/ AIRWAY BILL",
     selectPDFInvoice: "SELECT PDF FILE - INVOICE",
     selectPDFPacking: "SELECT PDF FILE - PACKING LIST",
@@ -189,6 +186,11 @@ const translations = {
     emailRequired: "Email is required",
     flightOrVessel: "Flight or Vessel",
     productDescription: "Product Description",
+    staffStatsReport: "Staff Stats Report",
+    bankTransfer: "Bank Transfer",
+    allinpayReserve: "Allinpay Reserve",
+    notAvailable: "N/A",
+    parsedFields: "Parsed Fields"
   },
   zh: {
     home: "主页",
@@ -303,8 +305,8 @@ const translations = {
     welcomeSubtitle: "点击了解更多以查看我们的CTN服务",
     about: "关于我们",
     aboutContent: "我们是处理尼日利亚货物跟踪单的唯一代理。我们承诺在24小时内为您处理货物跟踪单。如果您还没有账户，请点击注册继续。",
-    
-    // New missing translations
+
+    // Additional and missing translations for system completeness
     exportToPDF: "导出PDF",
     completedBillsAccountPage: "已完成提单 - 账户页面",
     search: "搜索",
@@ -365,7 +367,6 @@ const translations = {
     markedCompleted: "已标记为完成",
     uniqueEmailSent: "箱号邮件已发送",
     emailFailed: "邮件发送失败",
-    ctnNumber: "箱号",
     selectPDFBill: "选择PDF文件 - 提单/空运单",
     selectPDFInvoice: "选择PDF文件 - 发票",
     selectPDFPacking: "选择PDF文件 - 装箱单",
@@ -379,6 +380,11 @@ const translations = {
     emailRequired: "需要邮箱",
     flightOrVessel: "航班或船名",
     productDescription: "货物描述",
+    staffStatsReport: "员工统计报告",
+    bankTransfer: "银行转账",
+    allinpayReserve: "Allinpay预留",
+    notAvailable: "不可用",
+    parsedFields: "解析字段"
   },
   fr: {
     home: "Accueil",
@@ -493,8 +499,8 @@ const translations = {
     welcomeSubtitle: "Cliquez sur En savoir plus pour découvrir notre service CTN",
     about: "À propos de nous",
     aboutContent: "Nous sommes le seul agent pour traiter votre Note de Suivi de Cargaison du Nigeria. Nous promettons un service de qualité pour traiter votre Note de Suivi de Cargaison dans les 24 heures. Si vous n'avez pas encore de compte, veuillez cliquer sur s'inscrire pour continuer.",
-    
-    // New missing translations
+
+    // Additional and missing translations for system completeness
     exportToPDF: "Exporter en PDF",
     completedBillsAccountPage: "Connaissements terminés - Page du compte",
     search: "Rechercher",
@@ -555,7 +561,6 @@ const translations = {
     markedCompleted: "Marqué comme terminé",
     uniqueEmailSent: "Email du numéro unique envoyé",
     emailFailed: "Échec de l'envoi d'email",
-    ctnNumber: "Numéro CTN",
     selectPDFBill: "SÉLECTIONNER LE FICHIER PDF - CONNAISSEMENT/ LETTRE DE TRANSPORT AÉRIEN",
     selectPDFInvoice: "SÉLECTIONNER LE FICHIER PDF - FACTURE",
     selectPDFPacking: "SÉLECTIONNER LE FICHIER PDF - LISTE DE COLISAGE",
