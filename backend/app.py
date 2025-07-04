@@ -1088,6 +1088,16 @@ def internal_error(e):
 def ping():
     return jsonify({'message': 'pong', 'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()}), 200
 
+# Serve React static files
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_react(path):
+    static_folder = os.path.join(os.path.dirname(__file__), '../frontend/build')
+    if path != "" and os.path.exists(os.path.join(static_folder, path)):
+        return send_from_directory(static_folder, path)
+    else:
+        return send_from_directory(static_folder, 'index.html')
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port)
