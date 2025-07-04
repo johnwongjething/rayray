@@ -72,18 +72,30 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
 
-# Add specific endpoint limits for sensitive operations
 @app.route('/api/upload', methods=['POST'])
 @limiter.limit("5 per hour")  # Limit file uploads
+@jwt_required()  # Added to match token usage in UploadForm.js
 def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
-    if file and file.filename.endswith('.pdf'):
-        filename = file.filename
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return jsonify({"message": "File uploaded", "filename": filename}), 200
-    return jsonify({"error": "Invalid file type"}), 400
+    try:
+        if not any(key in request.files for key in ['bill_pdf', 'invoice_pdf', 'packing_pdf']):
+            return jsonify({"error": "No file part"}), 400
+        
+        uploaded_files = {}
+        for key in ['bill_pdf', 'invoice_pdf', 'packing_pdf']:
+            if key in request.files:
+                files = request.files.getlist(key)
+                for file in files:
+                    if file and file.filename.endswith('.pdf'):
+                        filename = f"{key}_{secrets.token_hex(8)}_{file.filename}"
+                        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                        uploaded_files[key] = uploaded_files.get(key, []) + [filename]
+                    else:
+                        return jsonify({"error": f"Invalid file type for {key}"}), 400
+        
+        return jsonify({"message": "Files uploaded", "filenames": uploaded_files}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/bills', methods=['GET'])
 def get_bills():
