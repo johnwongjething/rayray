@@ -35,7 +35,7 @@ function AccountingReview({ t = x => x }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await res.json();
+      const data = await response.json();
       setAllBills(data.bills || []);
     } catch (error) {
       setSnackbar({ open: true, message: error.message, severity: 'error' });
@@ -271,5 +271,3 @@ Thank you.`);
     </div>
   );
 }
-
-export default AccountingReview;

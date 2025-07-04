@@ -1,0 +1,2092 @@
+commit b95bf8f0472feb3f1f635e4f90b6b279869af1d8
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jul 4 13:20:33 2025 +0800
+
+    Remove backup folders, credentials file, and update frontend files
+
+backend_backup/.ebextensions/01_environment.config
+backend_backup/.ebextensions/02_gunicorn.config
+backend_backup/.ebextensions/03_security.config
+backend_backup/AWS Deployment Guide for Shipping Syst.md
+backend_backup/Procfile
+backend_backup/app.py
+backend_backup/config.py
+backend_backup/db_utils.py
+backend_backup/email_utils.py
+backend_backup/extract_fields.py
+backend_backup/invoice_utils.py
+backend_backup/migrate_to_timestamptz.sql
+backend_backup/migrate_to_timestamptz_simple.sql
+backend_backup/migrations/20240625_add_customer_invoice_and_packing_list.sql
+backend_backup/requirements.txt
+backend_backup/schema.sql
+backend_backup/setup_local_db.sql
+backend_backup/setup_railway_db.sql
+backend_backup/test_db.py
+backend_backup/test_railway_db.py
+frontend/src/pages/AccountPage.js
+frontend/src/pages/AccountingReview.js
+frontend/src/pages/Login.js
+frontend/src/pages/StaffStats.js
+frontend/src/pages/translations.js
+frontend_src_backup/App.css
+frontend_src_backup/App.test.js
+frontend_src_backup/components/LoadingModal.js
+frontend_src_backup/components/NavigationButtons.js
+frontend_src_backup/config.js
+frontend_src_backup/index.css
+frontend_src_backup/index.js
+frontend_src_backup/logo.svg
+frontend_src_backup/pages/.gitignore
+frontend_src_backup/pages/About.js
+frontend_src_backup/pages/AccountPage.js
+frontend_src_backup/pages/AccountingReview.js
+frontend_src_backup/pages/App.css
+frontend_src_backup/pages/App.js
+frontend_src_backup/pages/BillSearch.js
+frontend_src_backup/pages/Contact.js
+frontend_src_backup/pages/Dashboard.js
+frontend_src_backup/pages/EditBill.js
+frontend_src_backup/pages/EditDeleteBills.js
+frontend_src_backup/pages/FAQ.js
+frontend_src_backup/pages/ForgotPassword.js
+frontend_src_backup/pages/Home.js
+frontend_src_backup/pages/Login.js
+frontend_src_backup/pages/NavBar.js
+frontend_src_backup/pages/NotFound.js
+frontend_src_backup/pages/Register.js
+frontend_src_backup/pages/ResetPassword.js
+frontend_src_backup/pages/Review.js
+frontend_src_backup/pages/Services.js
+frontend_src_backup/pages/StaffStats.js
+frontend_src_backup/pages/UploadForm.js
+frontend_src_backup/pages/UserApproval.js
+frontend_src_backup/pages/WeChatButton.js
+frontend_src_backup/pages/WhatsAppButton.js
+frontend_src_backup/pages/assets/about.jpg
+frontend_src_backup/pages/assets/contact.jpg
+frontend_src_backup/pages/assets/faq.jpg
+frontend_src_backup/pages/assets/service.jpg
+frontend_src_backup/pages/translations.js
+frontend_src_backup/reportWebVitals.js
+frontend_src_backup/setupTests.js
+frontend_src_backup/translations.js
+frontend_src_backup/utils/envCheck.js
+frontend_src_backup/utils/tokenUtils.js
+
+commit c57e8b3617ab126f3e0e348acf42788cd356d8a5
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jul 4 13:08:14 2025 +0800
+
+    Fix client-side routing for password reset and add de
+
+backend/app.py
+backend/backend_backup/shippingocr-463405-aacc43181c99.json
+backend/encrypt.py
+backend/guide.tex
+
+commit 6dcd7182f808c12902cb2e2c31260599c908530b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jul 4 09:52:07 2025 +0800
+
+    Fix client-side routing for password reset and add deb
+
+backend/app.py
+backend/payment_link.py
+
+commit d6c663e67a33ee017d1cb27cc9312344f9abdfce
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jul 4 09:45:29 2025 +0800
+
+    Fix client-side routing for password reset and add debuggi
+
+backend/app.py
+
+commit 8f1a1d90c920db5a683a5a5ec60d50a727b92168
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jul 4 09:33:23 2025 +0800
+
+    Fix client-side routing for password reset and add dg
+
+backend/app.py
+
+commit 08f2da013c3a48267e261737d4615fd726336807
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jul 4 09:20:10 2025 +0800
+
+    Fix client-side routing for password reset and add debugg
+
+backend/app.py
+
+commit 6a19dddf23c9177abab22b0a0d9c0199e18116e0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jul 4 09:07:18 2025 +0800
+
+    Fix client-side routing for password reset and add debuggin
+
+backend/app.py
+backend/payment_link.py
+
+commit b7ee9ea07fb6978b1c66b28dd319b5b9e7f3d92f
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jul 4 08:47:27 2025 +0800
+
+    Fix client-side routing for password reset and add debugging
+
+change/app.py
+change/payment_link.py
+
+commit 0dc7a62cae1c0442d925b60ecd646d4e4027b9b3
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 17:44:09 2025 +0800
+
+    Add full webhook route1245678
+
+frontend/src/pages/Review.js
+
+commit 3f09c7b8d21b7fcab5b0f716900a374a3c04aebb
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 17:43:36 2025 +0800
+
+    Add full webhook route124567
+
+backend/payment_link.py
+
+commit 9824a2590a8b54ec12ee15453c263741202420b9
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 17:27:53 2025 +0800
+
+    Add full webhook route12456
+
+backend/app.py
+backend/payment_link.py
+
+commit b53377376063a7328a39589ee158bea6c5f01ad0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 17:23:29 2025 +0800
+
+    Add full webhook route1245
+
+frontend/src/pages/Review.js
+
+commit 1ed4b0a23e711aba17ccb3ad9362b0b0ad7ed28e
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 16:38:59 2025 +0800
+
+    Add full webhook route124
+
+backend/payment_webhook.py
+
+commit 43c62679b829d97947ee203268fadcc8d93368e6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 16:24:23 2025 +0800
+
+    Add full webhook route123
+
+backend/payment_webhook.py
+
+commit d8a4a49559232e7983086f38f7cdcaabce735da2
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 14:40:49 2025 +0800
+
+    Add full webhook route122
+
+backend/payment_webhook.py
+
+commit b9242ba4a298e158372eb11473ab2ef3c7f8a646
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 14:31:33 2025 +0800
+
+    Add full webhook route12
+
+backend/payment_webhook.py
+
+commit 924eeb271a0237a1f3c199731b0d651f44c8108e
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 14:15:29 2025 +0800
+
+    Add full webhook route1
+
+backend/app.py
+backend/payment_webhook.py
+
+commit 1e4f3034de651f129e744d52ba5d9825c0634693
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 14:11:56 2025 +0800
+
+    Add full webhook route
+
+backend/app.py
+backend/payment_webhook.py
+
+commit bbdc8d057eb22656e5bd8e1ddea127ed760d1293
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 14:04:40 2025 +0800
+
+    Add cr    jaaaaaaaa
+
+backend/payment_webhook.py
+
+commit f3ce8959dd16c08327a2a87e0116544e5a26a8d8
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 13:52:37 2025 +0800
+
+    Add cr    jaaaa
+
+backend/app.py
+backend/payment_webhook.py
+
+commit ba42530363e6a18eb2be363223fdffd20d83656b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 13:45:19 2025 +0800
+
+    Add cr    jaa
+
+backend/app.py
+
+commit 97490fc917e146f5af481ea4176382f94daf030e
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 13:37:50 2025 +0800
+
+    Add webhook with Allinpay logic and disable signature check
+
+backend/app.py
+backend/payment_webhook.py
+
+commit 297bdfd8e8c0a6c4cf726ff86e70286e3b0487b7
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 11:44:54 2025 +0800
+
+    Add cr    jaa
+
+backend/extract_fields.py
+
+commit b4fadd4786ed7dfd85882c8fa373adaf7a6eff47
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 11:30:02 2025 +0800
+
+    Add cr  lsssssaa
+
+backend/extract_fields.py
+
+commit e5498ff120974fecf41625268683d0282ab3b09b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 11:21:31 2025 +0800
+
+    Add cr  dddsa
+
+backend/extract_fields.py
+
+commit 07e073fe516bf9a0a0ad54722b68af34c71eca18
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 11:14:44 2025 +0800
+
+    Add cr    jaaa
+
+backend/extract_fields.py
+
+commit 286c146b2418fa1f11e9e98589a6b13953f041ce
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 11:08:08 2025 +0800
+
+    Add cr  lsssssa
+
+backend/extract_fields.py
+
+commit aa6fa27d6a60be9a780f472e149223c4d6dde231
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 10:55:53 2025 +0800
+
+    Add cr  ddds
+
+backend/extract_fields.py
+
+commit a108ce987d94d3ce5ef13089148b7d9e8240ce68
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 10:51:27 2025 +0800
+
+    Add cr    jaa
+
+backend/extract_fields.py
+
+commit 09e24db75a5226142cb66bca809140a72a500831
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 10:12:24 2025 +0800
+
+    Add cr  lsssss
+
+backend/extract_fields.py
+
+commit 705321c4e059ca7bf5e1b45551d587480da817ca
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 10:01:45 2025 +0800
+
+    Add cr  ddd
+
+backend/extract_fields.py
+
+commit c41e760c88d514b0ec60723c035baed207206ff8
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 09:57:11 2025 +0800
+
+    Add cr    j
+
+backend/extract_fields.py
+
+commit 5876886193c9892e5615e47cc44d12455a091f6a
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 09:22:09 2025 +0800
+
+    Add cr  lsss
+
+backend/extract_fields.py
+
+commit b0a3f6569e72c9298da5f3846e19077ea634a99a
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 09:17:14 2025 +0800
+
+    Add cr  ddds
+
+backend/extract_fields.py
+
+commit e107b56fd180c0abcd8fa5dff650c97604c99986
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 09:12:00 2025 +0800
+
+    Add cr    jd
+
+backend/extract_fields.py
+
+commit a7b0b2bce5f5ff2329947848e9bdd84acd7e5f38
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 08:51:23 2025 +0800
+
+    Add cr  lssss
+
+backend/extract_fields.py
+
+commit 00a5b0d0ff191fd436310975b3cb449644f23e8f
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jul 3 08:43:41 2025 +0800
+
+    Add cr  dddss
+
+backend/extract_fields.py
+
+commit 5f46d3b551e1b40da68b0182df520aa1b7e43a51
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 19:26:19 2025 +0800
+
+    Add cr    jda
+
+backend/extract_fields.py
+
+commit cc2a6c90c91cecade1bd3c02ddaa49d899841b8d
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 19:06:11 2025 +0800
+
+    Add cr  lsssss
+
+backend/extract_fields.py
+
+commit dbc8ba3887d0d0d370c37c2cceabcc532f9a8947
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 18:55:06 2025 +0800
+
+    Add cr  dddsss
+
+backend/extract_fields.py
+
+commit 9fcb77ab7534805b3b8f50385c246fecf48df2bc
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 18:41:19 2025 +0800
+
+    Add cr    jd
+
+backend/extract_fields.py
+
+commit 5d15f03eafda1dc7b0e8163ba0a9b9d64d7901b4
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 18:14:50 2025 +0800
+
+    Add cr  ls
+
+backend/extract_fields.py
+
+commit 39f2602e1304865f288054953cbf58bc26aa26c6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 18:02:32 2025 +0800
+
+    Add cr  dddss
+
+backend/extract_fields.py
+
+commit 00b4a054f9b8e054e62e7fbd92c1c8a36a562d07
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 17:45:06 2025 +0800
+
+    Add cr    jddd
+
+backend/extract_fields.py
+
+commit c9b2784a98678bc9b5af79508d9ba2ef2f6a47e6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 17:37:28 2025 +0800
+
+    Add cr  ll
+
+backend/extract_fields.py
+
+commit 4bc99c878a49c3228c995b5c058737ab357950b6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 17:29:03 2025 +0800
+
+    Add cr  dddsssss
+
+backend/extract_fields.py
+
+commit 403f7f74331d9ac630f71b99f56ca216c014eb55
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 17:19:00 2025 +0800
+
+    Add cr    j
+
+backend/extract_fields.py
+
+commit 5140cd79e275ab7be1f5cde146d174b9c7fc7218
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 17:09:21 2025 +0800
+
+    Add cr  lll
+
+backend/extract_fields.py
+
+commit b3554cc0a117f0e520d8584725bf7cb2655c950f
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 16:47:25 2025 +0800
+
+    Add cr  dddssssss
+
+backend/extract_fields.py
+
+commit 09f7678c3d1bbe6bfb9ef4b8e2357669d65827ac
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 16:38:12 2025 +0800
+
+    Add cr    jn
+
+backend/extract_fields.py
+
+commit 1738c9a514f8239e29bd643f739e5d2225793747
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 16:27:13 2025 +0800
+
+    Add cr  ll
+
+backend/extract_fields.py
+
+commit e9d6596b476ff453971369060dc55f25b5b3ac8c
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 16:17:55 2025 +0800
+
+    Add cr  dddssss
+
+backend/extract_fields.py
+
+commit 767163c05b8686f06a7c6e3fb1feebf8e3d8b0b2
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 16:07:20 2025 +0800
+
+    Add cr    jnj
+
+backend/extract_fields.py
+
+commit eed7a5207b9893e38d970f1ab9d5798e29b6ed5f
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 15:58:43 2025 +0800
+
+    Add cr  k
+
+backend/extract_fields.py
+
+commit 2d3cb75de68c465272a3a3d2ae21b8b7a6aeb1aa
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 14:42:55 2025 +0800
+
+    Add cr  ddds
+
+backend/extract_fields.py
+
+commit cce026ce1c4584884209c0970be01c354b460bdd
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 14:05:49 2025 +0800
+
+    Add cr    jnjk
+
+backend/extract_fields.py
+
+commit 997adc8eb87399c51f461c8248e36e4ec5fe6888
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 13:44:54 2025 +0800
+
+    Add cr  kkk
+
+backend/extract_fields.py
+
+commit 20a0ce0c080e18b0dda93a7a610c21842323cde4
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 12:23:36 2025 +0800
+
+    Add cr  dddss
+
+backend/extract_fields.py
+
+commit b61c9fdc994065b9c0120880e015aa3ec8bf319c
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 12:17:06 2025 +0800
+
+    Add cr    jnjkk
+
+backend/extract_fields.py
+
+commit 8271b67996415f336fd2530e8085d606e5ee9d50
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 12:12:15 2025 +0800
+
+    Add cr  kkkk
+
+backend/extract_fields.py
+
+commit 0b805942f034eb0c83b88c81cc8db1a046c2eff0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 11:29:37 2025 +0800
+
+    Add cr  ddd
+
+backend/extract_fields.py
+
+commit 92f7f36b42162304d4a42ea31d86a74ef0fb5fc4
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 11:13:04 2025 +0800
+
+    Add cr    jnj
+
+backend/extract_fields.py
+
+commit 7e2107ec6a8a7e86a3b8b23360dce735697132b9
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 10:55:23 2025 +0800
+
+    Add cr
+
+backend/extract_fields.py
+
+commit 94cb168de95bcb662587540a85c237c8e6e90892
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 09:55:41 2025 +0800
+
+    Add cr    j
+
+frontend/src/pages/StaffStats.js
+
+commit 468acda52618487f0714c2c1ea472de6ade0f933
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 09:43:12 2025 +0800
+
+    Add cr    d
+
+backend/app.py
+
+commit 1d47e9c00bca1bc33574464e514a217407765b1e
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 09:40:27 2025 +0800
+
+    Add cr
+
+backend/app.py
+
+commit 6711302f168085580c982d48601e9c5fd2e9a30a
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 09:26:12 2025 +0800
+
+    Add crekhkl
+
+backend/app.py
+
+commit b8497b238742d18752b4b57d7591ffa1c84eb280
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 09:07:14 2025 +0800
+
+    Add cr    df
+
+backend/app.py
+
+commit 2d2b3925179cc5ca71b46ed505d0d138d741715a
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 09:00:22 2025 +0800
+
+    Add cr
+
+backend/app.py
+
+commit 6e57423635633b41686aaa0f25bb4ad8c6ccded0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jul 2 08:53:44 2025 +0800
+
+    Add crekhklhk
+
+backend/app.py
+
+commit 37ba9291de1eb4a372a709a541b36daf68f1ceeb
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 18:35:15 2025 +0800
+
+    Add cr    dfdd
+
+backend/app.py
+
+commit f98f2375e8a70f394e15bc2a50e10a724364f54c
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 18:25:42 2025 +0800
+
+    Add cr    d
+
+backend/app.py
+
+commit fc1ddbaa94ac0da1bb60b2213d68ca9ccc491811
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 18:15:52 2025 +0800
+
+    Add crekhklhkla
+
+backend/app.py
+
+commit 80c89ff5301eb5fb7a163e4170b0b9f40d1fc3ac
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 18:12:39 2025 +0800
+
+    Add
+
+backend/app.py
+
+commit a94eb540de92cf561ba98eecf218565df49d0942
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 18:01:51 2025 +0800
+
+    Add cr    df
+
+backend/app.py
+
+commit 33f965ceae395c19b130c6a9367972374443d64d
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 18:01:07 2025 +0800
+
+    Add cr    d
+
+frontend/src/pages/StaffStats.js
+
+commit c77a939d41188df43bbb3db60b2a720d1ca918c4
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 17:50:12 2025 +0800
+
+    Add cr
+
+backend/app.py
+
+commit a56bf2ef385f24461a82d6ca608ca4e54c18238d
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 17:41:10 2025 +0800
+
+    Add crea
+
+backend/app.py
+
+commit 890c41475caf6dcea69ff290b8c6460fd8698f2b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 17:26:32 2025 +0800
+
+    Add crea
+
+backend/app.py
+
+commit 1f9d5950511c7aad4392ad5a6ffcb8cf01fb24c4
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 17:13:33 2025 +0800
+
+    Add crea
+
+backend/app.py
+
+commit c1dd21c4ab22aa9dcc28b8027b0f61a4b9f05847
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 16:10:45 2025 +0800
+
+    Add create
+
+frontend/src/pages/AccountPage.js
+
+commit c1db728715b1d8fda6bf4e09f6809894c5f3c66a
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 15:51:45 2025 +0800
+
+    Add cre
+
+frontend/src/pages/AccountPage.js
+
+commit 89d5d7b05421d1979387bcaa7bd83842b71ee7cb
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 15:37:51 2025 +0800
+
+    Add create
+
+backend/app.py
+
+commit 43252a1b918db711d82dba7518b909d9554e704b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 15:16:12 2025 +0800
+
+    Add created_
+
+frontend/src/pages/AccountPage.js
+
+commit 7521ed0c711bff669e0ddcc7e75c81d6221401a6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 14:57:28 2025 +0800
+
+    Add created_at
+
+backend/app.py
+
+commit abc458d5d3ebdc7063330594216ed2ae9d256ce3
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 14:45:03 2025 +0800
+
+    Add created_at column
+
+backend/app.py
+
+commit b73105b1100114c68cb41a631e124d5876fdc240
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 14:43:54 2025 +0800
+
+    Add created_at column to
+
+frontend/src/pages/AccountPage.js
+
+commit f42e1934a44c7e10fdf919ed8a4810ecc57ec993
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 14:38:40 2025 +0800
+
+    Add created_at column to B
+
+backend/app.py
+
+commit ff8bc270a688a045c0f1c392bbaa4bc81ec22999
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 14:33:48 2025 +0800
+
+    Add created_at col
+
+backend/app.py
+
+commit 0e34be376ac523fdeefa3237f477aaac38333e08
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 14:11:48 2025 +0800
+
+    Add created_at colu
+
+frontend/src/pages/AccountPage.js
+
+commit cd12247bc1ddf5235a427c003cd933308d31c908
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 14:04:24 2025 +0800
+
+    Add created_at column
+
+backend/app.py
+
+commit 193cef6808347138a88cf7cdf8bdc57691c4709d
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 13:52:23 2025 +0800
+
+    Add created_at column to B
+
+backend/requirements.txt
+
+commit e1577b4087062ddefed9cb3faa76caebaef7b2dd
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 13:44:27 2025 +0800
+
+    Add created_at column to Bi
+
+backend/app.py
+
+commit a52a2788ed48ddbd56313aeedb5ef4e79f43f397
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 12:54:27 2025 +0800
+
+    Add created_at column to
+
+backend/app.py
+
+commit 6de96648120f4b863495112471e3b05a59635c07
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 12:38:59 2025 +0800
+
+    Add created_at column to Bill
+
+frontend/src/pages/AccountPage.js
+
+commit b5eb54d924231efc374928b047f29108144f1375
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Tue Jul 1 12:38:32 2025 +0800
+
+    Add created_at column to BillSe
+
+backend/app.py
+
+commit 63b2979bf3fc782638c3a63d79072ec506c73c6f
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 19:20:26 2025 +0800
+
+    Add created_at column to BillS
+
+backend/app.py
+
+commit 4d48fe8464ae25c8af699eb54a7629b46ae24c21
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 19:04:34 2025 +0800
+
+    Add created_at column to Bil
+
+backend/app.py
+
+commit 524be5a255cd6041a6e6519e44079030211b09d6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 18:59:39 2025 +0800
+
+    Add created_at column to Bil
+
+backend/app.py
+
+commit fe396648276a4489b2eb31329a261ec89fc403ec
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 18:51:47 2025 +0800
+
+    Add created_at column to
+
+backend/app.py
+
+commit 76661805c12912d2bf26dfa195fb92451a6af882
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 18:42:32 2025 +0800
+
+    Add created_at column to Bil
+
+frontend/src/pages/AccountingReview.js
+
+commit 29d289427e3bc26bb21d0a2495f5635c812a8356
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 18:41:11 2025 +0800
+
+    Add created_at column to BillSe
+
+backend/app.py
+
+commit 317a5b4d73bdaf7fd9514868a2d6bda0ef99636f
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 18:18:35 2025 +0800
+
+    Add created_at column to BillS
+
+backend/app.py
+
+commit aa4ec691ca3a7f97703fb5c2491f2581edc478ee
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 17:57:16 2025 +0800
+
+    Add created_at column to BillSear
+
+frontend/src/pages/AccountingReview.js
+
+commit 8749bfc204cd9400e8d8e42aabd1a0bd6023b73a
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 17:53:33 2025 +0800
+
+    Add created_at column to BillSearch a
+
+backend/app.py
+
+commit 240edab81137acb236adff83a09315e589f2a040
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 17:43:09 2025 +0800
+
+    Add created_at column to BillSearc
+
+backend/app.py
+
+commit 60d3c2e0d9aafd92e0e6278f8d9ccbb56e5da83e
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 17:30:51 2025 +0800
+
+    Add created_at column to BillSearch an
+
+backend/app.py
+
+commit f1863c2ec45b447a7e19334fd4f6392897a86167
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 17:25:50 2025 +0800
+
+    Add created_at column to BillSearch and fix Fo
+
+backend/app.py
+
+commit c0c78e6ad55e99cf78f7cd7cbc5430280f8c2145
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 17:20:25 2025 +0800
+
+    Add created_at column to BillSearch and fix
+
+backend/app.py
+
+commit 1f190748f2a5b9be6ab3108174b14ac0433ce755
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 17:10:05 2025 +0800
+
+    Add created_at column to BillSearch and fix Forgot
+
+backend/app.py
+
+commit ea4168a771f2c4cb6ec428cbf58751f31cd89b44
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 17:05:42 2025 +0800
+
+    Add created_at column to BillSearch and fix Forgo
+
+backend/app.py
+
+commit b28e034d7eaeba9dcb8e04e1569bea2a41523e63
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 16:59:42 2025 +0800
+
+    Add created_at column to BillSearch and fix Forgot
+
+backend/app.py
+
+commit 3185561cc2e76ff055a8ad7fed190620295c1ca9
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 16:55:34 2025 +0800
+
+    Add created_at column to BillSearch and fix ForgotPas
+
+backend/app.py
+
+commit aafe0a53c2ada26909cdf8062ce2da1c8631ae57
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 16:50:37 2025 +0800
+
+    Add created_at column to BillSearch and fix ForgotPasswor
+
+backend/app.py
+
+commit 8056a727c8c5b0f40bbe76b12b730e95269bb84b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 16:39:04 2025 +0800
+
+    Add created_at column to BillSearch and fix ForgotPassw
+
+backend/app.py
+
+commit 974d65fbc5d57bd8b6931c78357193c5429aefa5
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 16:30:59 2025 +0800
+
+    Add created_at column to BillSearch and fix ForgotPassword n
+
+backend/app.py
+
+commit 54298746173d7c289cbf9f86608c5e4d99bd1a28
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 16:19:56 2025 +0800
+
+    Add created_at column to BillSearch and fix ForgotPassword navigation
+
+backend/app.py
+
+commit 447ba6d5cc0fdb053d0a1e898fef51766fb459de
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 16:09:26 2025 +0800
+
+    Fi
+
+backend/app.py
+
+commit 83b99c3b9243698d06b60015ebd292b6aa21fbe5
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 16:03:01 2025 +0800
+
+    Fix
+
+backend/app.py
+
+commit 5cde0b65c3879a1bb18341a546cc3a3953d94eba
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:53:30 2025 +0800
+
+    Fix
+
+backend/app.py
+
+commit 9ccb1019e68f9739a2cdc5fb6df94250433222ca
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:44:39 2025 +0800
+
+    Fix a
+
+backend/app.py
+
+commit 8e62762a0fe287377e43de23962d8af6f5317ebc
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:44:02 2025 +0800
+
+    Fix pas
+
+backend/app.py
+
+commit 2984f501cb986117582c9f7dd93bbe6631bb4f93
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:38:49 2025 +0800
+
+    Fix pas
+
+backend/app.py
+
+commit 2f43df249626344f840726fac226d42a4c8a8df0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:28:56 2025 +0800
+
+    Fix pas
+
+backend/app.py
+
+commit 498d8bec5d9dbfbecbc78559c8681ca39141e1e0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:22:54 2025 +0800
+
+    Fix pass
+
+backend/app.py
+
+commit 04158446ad57db5f78fd6f04dc5073285ed1dea5
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:12:45 2025 +0800
+
+    Fix password
+
+backend/app.py
+
+commit 501cf0c9e48e8b91282ff621d1cc3847f9c975dc
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:07:04 2025 +0800
+
+    Fix passw
+
+backend/app.py
+
+commit 53386854f70d84d90831adc257cd38a8d6f18d00
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 15:01:11 2025 +0800
+
+    Fix password
+
+backend/app.py
+
+commit e253eb88644c61f822cc8e2ccc48a65ea92cc2f3
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 14:48:00 2025 +0800
+
+    Fix password
+
+backend/app.py
+
+commit 7ed3c4b0cccad7f99436fe74e2a77e60d419c67a
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 14:36:42 2025 +0800
+
+    Fix passw
+
+backend/app.py
+
+commit 83148f1b86d1ff7e4ffd5df3943442570c3c1934
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 14:28:18 2025 +0800
+
+    Fix passwo
+
+backend/app.py
+
+commit 5f271db8be451d562954f0ba8b42af8c4d42fb90
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 14:20:20 2025 +0800
+
+    Fix password
+
+backend/app.py
+
+commit 32b2cf97bbc14ea3432a81925c30e0bbdc16d21b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 13:57:19 2025 +0800
+
+    Fix password re
+
+backend/app.py
+
+commit 7caf4ced91364f4e3a64078118a21653a2419d35
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 13:49:24 2025 +0800
+
+    Fix password res
+
+backend/app.py
+
+commit 89379f9eecda02356e701477574ec3114226b612
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 13:43:28 2025 +0800
+
+    Fix password r
+
+backend/app.py
+
+commit 5bd000dc951d5cfab08d8f1b7ae2bfe0de909bbf
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 13:36:11 2025 +0800
+
+    Fix password res
+
+backend/app.py
+
+commit cd0b12e28b070fca85f489388602a3c3b934e1c0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 13:25:37 2025 +0800
+
+    Fix password rese
+
+backend/app.py
+
+commit 4ccfa0651a5b87803a5cdcf4b8e1a6ef22d6d308
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 13:17:05 2025 +0800
+
+    Fix password reset lin
+
+backend/app.py
+
+commit 5f76deb0d28d18d50689e28ba921dc19cf37d143
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 13:10:12 2025 +0800
+
+    Fix password reset
+
+backend/app.py
+
+commit 73d509c203c5f5825cbe1631795bf51cb9ebb9f6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 13:00:33 2025 +0800
+
+    Fix password reset
+
+backend/app.py
+
+commit fd26741375c0f125e17e0f7aac8471b14d8c1016
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 12:46:03 2025 +0800
+
+    Fix password reset
+
+backend/app.py
+
+commit 9d5c3465b0f34beada3bd04902ea0d7cf2233e7f
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 12:29:29 2025 +0800
+
+    Fix password reset lin
+
+backend/app.py
+
+commit e015fd87e52088ad7c118a08b7d1a962ec55e3c3
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 12:16:50 2025 +0800
+
+    Fix password reset l
+
+backend/app.py
+
+commit 50c685fff021ac1e8d463eb5543c868bee47c6d7
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 12:08:45 2025 +0800
+
+    Fix password reset link t
+
+backend/app.py
+
+commit 4e731303e35a181e1993b91eeb042409b4781a90
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 12:03:45 2025 +0800
+
+    Fix password reset link
+
+backend/app.py
+
+commit f9bd366fca612627f2650ec80c54a9cb4ce297cb
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 11:51:33 2025 +0800
+
+    Fix password reset link to p
+
+backend/app.py
+
+commit d66bad28918ad234753348728d48322ea5eece05
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 11:44:20 2025 +0800
+
+    Fix password reset link to poi
+
+backend/app.py
+
+commit 38facab60809a5a328dc4c8807495df150732f3b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 11:34:56 2025 +0800
+
+    Fix password reset link to point
+
+backend/app.py
+
+commit 0f8a7dcf5d102c08193b30f96e4d0d0eaa69d639
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 11:26:45 2025 +0800
+
+    Fix password reset link to point to f
+
+backend/app.py
+
+commit 3c0fbd9c3de4c3cdd2726b517817bc8846592ea1
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 11:17:21 2025 +0800
+
+    Fix password reset link to point to front
+
+backend/app.py
+
+commit c2bd6a58e00c02537b2108b9b0bc4f34e7ba583d
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 11:10:50 2025 +0800
+
+    Fix password reset link to point to
+
+backend/app.py
+
+commit c11e5601e9e0d2216c313621d4e4db00e3f2e446
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 11:05:37 2025 +0800
+
+    Fix password reset link to point to frontend domain
+
+backend/app.py
+
+commit 97523c5e3c5ef4ac131d6b297ae99f446bfd093c
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 10:40:55 2025 +0800
+
+    Fix password reset link to point to frontend domain
+
+backend/app.py
+
+commit 8b4b0d180e2a95742e9c431ef63f8fcc15f29ea2
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 10:26:08 2025 +0800
+
+    Fix password reset link to point to frontend domain
+
+backend/app.py
+
+commit 4e9bc384a4fde608469f7638909cd9bbed2f3bd7
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 10:15:23 2025 +0800
+
+    Fix password reset link to point to frontend domain
+
+backend/app.py
+
+commit 4210e2dca409c176fda20b9a1e70058a79eda084
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 09:38:04 2025 +0800
+
+    Fix password reset link to point to frontend domain
+
+frontend/src/pages/AccountPage.js
+
+commit 4dd9a4f6ef6d0e092b5cdd0bfdf207585c098a59
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Mon Jun 30 09:25:18 2025 +0800
+
+    Fix password reset link to point to frontend domain
+
+frontend/src/pages/AccountPage.js
+
+commit bd99f13e2386d7c8c8aacc36e4a0f61ad5dff3b6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 18:25:26 2025 +0800
+
+    add reserve
+
+backend/app.py
+
+commit 5a7b6ae36064d06d4963572b21f62cbae615b164
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 17:39:30 2025 +0800
+
+    update review
+
+backend/app.py
+
+commit 0450fc818f94ade61aade6939d3b7da7a16e9d5d
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 17:32:54 2025 +0800
+
+    update review
+
+frontend/src/pages/Review.js
+
+commit 1e93cee2c67e19425bdbcbcb138d3656a560e8d0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 17:22:44 2025 +0800
+
+    add reserve
+
+backend/app.py
+
+commit c7efd245c7485349fb2cfc16d0363a4cfbbc6efb
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 17:01:22 2025 +0800
+
+    add reserve
+
+frontend/src/pages/AccountingReview.js
+
+commit 8df1872930b8122c63ab99afe2b6cf97ae668e70
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 16:43:33 2025 +0800
+
+    add reserve
+
+backend/app.py
+
+commit 0afcfabad3de0e73ed384aaf5817b32386e3a20c
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 16:35:51 2025 +0800
+
+    add reserve on accountingreview
+
+backend/app.py
+
+commit 991bc9e1e76492e20b6432396ecf9ab380475ab0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 16:26:05 2025 +0800
+
+    add reserve on accountingreview
+
+backend/app.py
+
+commit 52ccc132e7bc1b6c226b93347e65108bc8763eb1
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 16:11:00 2025 +0800
+
+    add reserve on backend
+
+backend/app.py
+
+commit 4525012762079a087199bb8c95f7c79da2f90fde
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 15:55:48 2025 +0800
+
+    add reserve on
+
+backend/app.py
+
+commit b088b49d327eb9cda8b1bd87c25ffcd0ebd9bab0
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 15:37:46 2025 +0800
+
+    add reserve on
+
+backend/app.py
+
+commit 29be5beaaea9a922c74dce40c190a3e3dbb43a17
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 15:30:43 2025 +0800
+
+    fix 500 error
+
+backend/app.py
+
+commit 4dd13d244615f3364af2545973e7677c93acead8
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 15:23:51 2025 +0800
+
+    add reserve on
+
+backend/app.py
+
+commit 3c162e36aaf7c7c48bb5679681076ffedd75523b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 15:16:10 2025 +0800
+
+    add reserve on accountingreview
+
+backend/app.py
+
+commit 7e3a92fab27af6eaab0e582aae2ac8c7dbdd833c
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 15:05:41 2025 +0800
+
+    add reserve on backend
+
+backend/app.py
+
+commit 2204882cc907b85099d12638ea3516f19e7b30fe
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sun Jun 29 10:39:50 2025 +0800
+
+    add reserve on accountingreview
+
+frontend/src/pages/AccountingReview.js
+
+commit 2ebb9d3c6642fb8ea594d2f7dc169b81b1e2c41b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 18:10:18 2025 +0800
+
+    add generate link button
+
+frontend/src/pages/Review.js
+
+commit ecd443a5e7781606acedbfcb89f3a7c4803cdb2c
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 15:55:34 2025 +0800
+
+    Fix: send_unique_number_email uses frontend body instead of regenerating
+
+backend/email_utils.py
+
+commit ee466d1cf1a6e75cd3917006ab1e9e10e7554983
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 15:40:35 2025 +0800
+
+    Update: review page
+
+frontend/src/pages/Review.js
+
+commit b2b47413f276f161c4400f79c06e3db3929d7150
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 15:19:01 2025 +0800
+
+    Update: mobile-friendly search
+
+frontend/src/pages/Review.js
+
+commit f69033c130e7d830b7a8643212344c0965d6ba6f
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 15:07:48 2025 +0800
+
+    Update: mobile-friendly search page
+
+frontend/src/pages/Review.js
+
+commit 1ebc7592f8c538be5189ddf96f79b1d21be54133
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 14:45:47 2025 +0800
+
+    Update: review page
+
+frontend/src/pages/Review.js
+
+commit de9fa98e10275a8d7c5e4e07d48cc374018184da
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 14:08:32 2025 +0800
+
+    Update: mobile-friendly search page
+
+frontend/src/pages/BillSearch.js
+
+commit 065874f99138fb9007c92495669432d59b8ad8a4
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 13:43:17 2025 +0800
+
+    Update: mobile-friendly register page
+
+frontend/src/pages/Register.js
+
+commit adf6d31a0c93f8a0949cc330d0d9d037f639d4f9
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 13:33:09 2025 +0800
+
+    Update: mobile-friendly search page
+
+frontend/src/pages/BillSearch.js
+
+commit 66851d29f9c878573292ebcc78012e668ae8b2bf
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 13:18:30 2025 +0800
+
+    Update: mobile-friendly contact us page
+
+frontend/src/pages/Contact.js
+frontend/src/pages/Login.js
+
+commit 0718cd9df15ce413ba37f8865948bb5ed8055037
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Sat Jun 28 12:57:10 2025 +0800
+
+    Update: mobile-friendly UploadForm, improved LoadingModal, NavBar tweaks
+
+frontend/src/components/LoadingModal.js
+frontend/src/pages/NavBar.js
+frontend/src/pages/UploadForm.js
+
+commit 478bc9d60dad313aa82697bfb25d8a04508461ae
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 18:47:04 2025 +0800
+
+    Add forgot username UI
+
+frontend/src/pages/App.js
+frontend/src/pages/Login.js
+
+commit f7ad1e6356cf17ed6be27d5a0c59af30a438af32
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 18:26:57 2025 +0800
+
+    new forgot username function
+
+backend/app.py
+frontend/src/pages/ForgotUsername.js
+frontend/src/pages/translations.js
+
+commit 07b12b966e013ec73c4b9be1d53d43c13948e039
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 17:42:15 2025 +0800
+
+    Feat: send admin email on user registration
+
+backend/app.py
+frontend/src/pages/Register.js
+
+commit b526836cd770101e69d3ea3d23dc58aaa3516162
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 16:02:40 2025 +0800
+
+    Update field
+
+frontend/src/pages/EditBill.js
+
+commit 2582c48a1f6b2a44c08738719835149471c1779b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 15:51:23 2025 +0800
+
+    Show and save flight_or_vessel and product_description fields in Review modal and backend
+
+backend/app.py
+
+commit 372227936868bf1347b32859177e5549b26b6f5d
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 15:35:39 2025 +0800
+
+    Show and save flight_or_vessel and product_description fields in Review modal and backend
+
+backend/app.py
+frontend/src/pages/Review.js
+
+commit 383d371f6ac822573e6db990e998d097109572ef
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 12:25:42 2025 +0800
+
+    Fix: restore full AWB logic and improve flight/product p
+
+backend/extract_fields.py
+
+commit 5f0e3c38ece515a303739893a7dba9a26d7564cb
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 12:15:54 2025 +0800
+
+    Fix: restore BOL parser + trim AWB ports + read flight number
+
+backend/extract_fields.py
+
+commit fd3f5977976784a3c04a088a326b8b6eae8f0f97
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 12:02:31 2025 +0800
+
+    Fix: ensure extract_fields function is defined at top level
+
+backend/extract_fields.py
+
+commit a2a3bbb79227bca1bd2bcc7fb847b1829c850b63
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 11:49:48 2025 +0800
+
+    Fix: restore full field extraction and add flight/product logic
+
+backend/extract_fields.py
+
+commit fc13e402b0acaf838203deb141b75fca374ce2c1
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 11:25:11 2025 +0800
+
+    Fix: restore full field extraction and add flight/product logic
+
+backend/extract_fields.py
+
+commit fc063138edabd9d1984482f69d627d3a01f6d073
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 11:04:50 2025 +0800
+
+    Feat: add flight/vessel and product description fields to B/L upload and parser
+
+backend/app.py
+backend/extract_fields.py
+
+commit bce4f5e1d6a41adedc0b5022b373d8e3b1a9295e
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Fri Jun 27 10:00:55 2025 +0800
+
+    Fix: update WhatsApp link for better desktop support
+
+frontend/src/pages/App.js
+frontend/src/pages/WhatsAppButton.js
+
+commit 771b27e862b1ecef7f290af0bf2e3148dc13a810
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 17:55:53 2025 +0800
+
+    Fix: update password reset link to use custom domain
+
+backend/app.py
+
+commit 09409ac199f55cb32ce6c86123a229b1e17beafc
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 16:45:34 2025 +0800
+
+    Fix: update config and env to remove duplicate /api
+
+frontend/.env.production
+frontend/src/config.js
+
+commit ee0d832bd6aed4093d91cfdcc817820a95263ed2
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 16:10:48 2025 +0800
+
+    Fix: actually save .env.production to point to backend
+
+frontend/.env.production
+
+commit c51e089ee8640e26f1f263f735459cba6b913e69
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 15:55:23 2025 +0800
+
+    Fix: move /api/ping below app init
+
+backend/app.py
+
+commit 62d1d4f681b82ae4bc1711e3c081631651ac67f1
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 15:45:47 2025 +0800
+
+    Add /api/ping health check route
+
+backend/app.py
+
+commit 3c0643147f64dd315b7dd32f6d2ceb1918156805
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 15:35:59 2025 +0800
+
+    Fix: update API base URL to rayray.onrender.com
+
+frontend/.env.production
+
+commit 90078c1d262b9b25d73c2cb455d1241af4dd6d88
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 14:31:28 2025 +0800
+
+    Update backend env and CORS for production domains
+
+backend/.env
+backend/app.py
+backend/backend_backup/app.py
+
+commit ce8fa1fdae97759691b325946384abd8a073332c
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 14:29:43 2025 +0800
+
+    Add env files for deployment (no secrets included)
+
+frontend/.env
+frontend/.env.production
+
+commit b878c629cfbdbaa2721290004468d491eedfa581
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 14:28:29 2025 +0800
+
+    Set API base URLs for local and production, update env.example and config.js
+
+frontend/env.example
+frontend/src/config.js
+
+commit 4162b0037ab35edf43133146c7f41316c3c583e6
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 13:33:58 2025 +0800
+
+    Add Render-specific configuration for client-side routing
+
+frontend/render.yaml
+frontend/static.json
+
+commit 3f4894520e56a06ca5dbbdd767ff8ec5ce27a034
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 13:24:01 2025 +0800
+
+    Fix client-side routing for password reset and add debugging
+
+frontend/public/_redirects
+frontend/src/pages/App.js
+frontend/src/pages/ResetPassword.js
+frontend/static.json
+
+commit 5f7c0a0cd751d35186e296bc1bab7f31db426b19
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 13:13:45 2025 +0800
+
+    Fix password reset link to point to frontend domain
+
+backend/app.py
+backend/backend_backup/app.py
+
+commit ef9446eb27fd63634ac8a31ecb93ca4ec48947c5
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 12:05:05 2025 +0800
+
+    Add created_at column to BillSearch, fix password reset flow and improve UI
+
+frontend/src/pages/BillSearch.js
+frontend/src/pages/ForgotPassword.js
+frontend/src/pages/Login.js
+frontend/src/pages/ResetPassword.js
+
+commit 49f6617e45036937351d301984db76be639fc62a
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 11:36:41 2025 +0800
+
+    Set API base URL to Render backend
+
+backend/app.py
+
+commit a69dfa34c6fd93f28f1c6eecb4a38b46d7665517
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 11:11:38 2025 +0800
+
+    Allow frontend domain in CORS
+
+backend/app.py
+
+commit effec84f4eb79637b39a55cc073ca793eebad1ef
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 10:53:30 2025 +0800
+
+    Set API base URL to Render backend
+
+frontend/src/config.js
+
+commit 714adc1f03e908296adf4eaf5c92ba5d5146e76b
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Thu Jun 26 09:26:18 2025 +0800
+
+    Fix: Ensure Procfile is included for Render
+
+frontend/env.example
+
+commit ed0b659cee6e570f4c29ec5d26ee7940db336d42
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jun 25 19:31:12 2025 +0800
+
+    Update all backend and frontend references to rayray.onrender.com
+
+backend/Procfile
+backend/app.py
+backend/backend_backup/app.py
+
+commit 4dcc7e743fd62c7f3393ba833fc1dd79bde68d81
+Author: johnwongjething <johnwongjething@gmail.com>
+Date:   Wed Jun 25 18:34:26 2025 +0800
+
+    Clean start, no secrets
+
+.gitignore
+John
+MIGRATION_README.md
+README.md
+backend/.ebextensions/01_environment.config
+backend/.ebextensions/02_gunicorn.config
+backend/.ebextensions/03_security.config
+backend/AWS Deployment Guide for Shipping Syst.md
+backend/Procfile
+backend/app.py
+backend/backend_backup/.ebextensions/01_environment.config
+backend/backend_backup/.ebextensions/02_gunicorn.config
+backend/backend_backup/.ebextensions/03_security.config
+backend/backend_backup/AWS Deployment Guide for Shipping Syst.md
+backend/backend_backup/Procfile
+backend/backend_backup/app.py
+backend/backend_backup/config.py
+backend/backend_backup/db_utils.py
+backend/backend_backup/email_utils.py
+backend/backend_backup/extract_fields.py
+backend/backend_backup/invoice_utils.py
+backend/backend_backup/migrate_to_timestamptz.sql
+backend/backend_backup/migrate_to_timestamptz_simple.sql
+backend/backend_backup/migrations/20240625_add_customer_invoice_and_packing_list.sql
+backend/backend_backup/requirements.txt
+backend/backend_backup/schema.sql
+backend/backend_backup/setup_local_db.sql
+backend/backend_backup/setup_railway_db.sql
+backend/backend_backup/test_db.py
+backend/backend_backup/test_railway_db.py
+backend/config.py
+backend/db_utils.py
+backend/email_utils.py
+backend/extract_fields.py
+backend/invoice_utils.py
+backend/migrate_to_timestamptz.sql
+backend/migrate_to_timestamptz_simple.sql
+backend/migrations/20240625_add_customer_invoice_and_packing_list.sql
+backend/requirements.txt
+backend/schema.sql
+backend/setup_local_db.sql
+backend/setup_railway_db.sql
+backend/test_db.py
+backend/test_railway_db.py
+backend_backup/.ebextensions/01_environment.config
+backend_backup/.ebextensions/02_gunicorn.config
+backend_backup/.ebextensions/03_security.config
+backend_backup/AWS Deployment Guide for Shipping Syst.md
+backend_backup/Procfile
+backend_backup/app.py
+backend_backup/config.py
+backend_backup/db_utils.py
+backend_backup/email_utils.py
+backend_backup/extract_fields.py
+backend_backup/invoice_utils.py
+backend_backup/migrate_to_timestamptz.sql
+backend_backup/migrate_to_timestamptz_simple.sql
+backend_backup/migrations/20240625_add_customer_invoice_and_packing_list.sql
+backend_backup/requirements.txt
+backend_backup/schema.sql
+backend_backup/setup_local_db.sql
+backend_backup/setup_railway_db.sql
+backend_backup/test_db.py
+backend_backup/test_railway_db.py
+frontend/.gitignore
+frontend/README.md
+frontend/assets/about.jpg
+frontend/assets/chris-pagan-sfjS-FglvU4-unsplash.jpg
+frontend/assets/chuttersnap-eqwFWHfQipg-unsplash.jpg
+frontend/assets/chuttersnap-kyCNGGKCvyw-unsplash.jpg
+frontend/assets/contact.jpg
+frontend/assets/ian-taylor-jOqJbvo1P9g-unsplash.jpg
+frontend/assets/prabu-panji-3qBv7TbeXew-unsplash.jpg
+frontend/assets/seaport.jpg
+frontend/assets/service.jpg
+frontend/assets/timelab-sWOvgOOFk1g-unsplash.jpg
+frontend/env.example
+frontend/package-lock.json
+frontend/package.json
+frontend/public/assets/about.jpg
+frontend/public/assets/contact.jpg
+frontend/public/assets/faq.jpg
+frontend/public/assets/service.jpg
+frontend/public/favicon.ico
+frontend/public/images/about.jpg
+frontend/public/images/andy-li-CpsTAUPoScw-unsplash.jpg
+frontend/public/images/chuttersnap-eqwFWHfQipg-unsplash (2).jpg
+frontend/public/images/chuttersnap-eqwFWHfQipg-unsplash.jpg
+frontend/public/images/chuttersnap-kyCNGGKCvyw-unsplash.jpg
+frontend/public/images/contact.jpg
+frontend/public/images/ian-taylor-jOqJbvo1P9g-unsplash.jpg
+frontend/public/images/marcin-jozwiak-kGoPcmpPT7c-unsplash.jpg
+frontend/public/images/prabu-panji-3qBv7TbeXew-unsplash.jpg
+frontend/public/images/seaport.jpg
+frontend/public/images/seaport1.jpg
+frontend/public/images/service.jpg
+frontend/public/images/timelab-sWOvgOOFk1g-unsplash.jpg
+frontend/public/index.html
+frontend/public/logo192.png
+frontend/public/logo512.png
+frontend/public/manifest.json
+frontend/public/robots.txt
+frontend/public/wechat-icon.png
+frontend/public/whatsapp-icon.png
+frontend/src/App.css
+frontend/src/App.test.js
+frontend/src/components/LoadingModal.js
+frontend/src/components/NavigationButtons.js
+frontend/src/config.js
+frontend/src/frontend_src_backup/App.css
+frontend/src/frontend_src_backup/App.test.js
+frontend/src/frontend_src_backup/components/LoadingModal.js
+frontend/src/frontend_src_backup/components/NavigationButtons.js
+frontend/src/frontend_src_backup/config.js
+frontend/src/frontend_src_backup/index.css
+frontend/src/frontend_src_backup/index.js
+frontend/src/frontend_src_backup/logo.svg
+frontend/src/frontend_src_backup/pages/.gitignore
+frontend/src/frontend_src_backup/pages/About.js
+frontend/src/frontend_src_backup/pages/AccountPage.js
+frontend/src/frontend_src_backup/pages/AccountingReview.js
+frontend/src/frontend_src_backup/pages/App.css
+frontend/src/frontend_src_backup/pages/App.js
+frontend/src/frontend_src_backup/pages/BillSearch.js
+frontend/src/frontend_src_backup/pages/Contact.js
+frontend/src/frontend_src_backup/pages/Dashboard.js
+frontend/src/frontend_src_backup/pages/EditBill.js
+frontend/src/frontend_src_backup/pages/EditDeleteBills.js
+frontend/src/frontend_src_backup/pages/FAQ.js
+frontend/src/frontend_src_backup/pages/ForgotPassword.js
+frontend/src/frontend_src_backup/pages/Home.js
+frontend/src/frontend_src_backup/pages/Login.js
+frontend/src/frontend_src_backup/pages/NavBar.js
+frontend/src/frontend_src_backup/pages/NotFound.js
+frontend/src/frontend_src_backup/pages/Register.js
+frontend/src/frontend_src_backup/pages/ResetPassword.js
+frontend/src/frontend_src_backup/pages/Review.js
+frontend/src/frontend_src_backup/pages/Services.js
+frontend/src/frontend_src_backup/pages/StaffStats.js
+frontend/src/frontend_src_backup/pages/UploadForm.js
+frontend/src/frontend_src_backup/pages/UserApproval.js
+frontend/src/frontend_src_backup/pages/WeChatButton.js
+frontend/src/frontend_src_backup/pages/WhatsAppButton.js
+frontend/src/frontend_src_backup/pages/assets/about.jpg
+frontend/src/frontend_src_backup/pages/assets/contact.jpg
+frontend/src/frontend_src_backup/pages/assets/faq.jpg
+frontend/src/frontend_src_backup/pages/assets/service.jpg
+frontend/src/frontend_src_backup/pages/translations.js
+frontend/src/frontend_src_backup/reportWebVitals.js
+frontend/src/frontend_src_backup/setupTests.js
+frontend/src/frontend_src_backup/translations.js
+frontend/src/frontend_src_backup/utils/envCheck.js
+frontend/src/frontend_src_backup/utils/tokenUtils.js
+frontend/src/index.css
+frontend/src/index.js
+frontend/src/logo.svg
+frontend/src/pages/.gitignore
+frontend/src/pages/About.js
+frontend/src/pages/AccountPage.js
+frontend/src/pages/AccountingReview.js
+frontend/src/pages/App.css
+frontend/src/pages/App.js
+frontend/src/pages/BillSearch.js
+frontend/src/pages/Contact.js
+frontend/src/pages/Dashboard.js
+frontend/src/pages/EditBill.js
+frontend/src/pages/EditDeleteBills.js
+frontend/src/pages/FAQ.js
+frontend/src/pages/ForgotPassword.js
+frontend/src/pages/Home.js
+frontend/src/pages/Login.js
+frontend/src/pages/NavBar.js
+frontend/src/pages/NotFound.js
+frontend/src/pages/Register.js
+frontend/src/pages/ResetPassword.js
+frontend/src/pages/Review.js
+frontend/src/pages/Services.js
+frontend/src/pages/StaffStats.js
+frontend/src/pages/UploadForm.js
+frontend/src/pages/UserApproval.js
+frontend/src/pages/WeChatButton.js
+frontend/src/pages/WhatsAppButton.js
+frontend/src/pages/assets/about.jpg
+frontend/src/pages/assets/contact.jpg
+frontend/src/pages/assets/faq.jpg
+frontend/src/pages/assets/service.jpg
+frontend/src/pages/translations.js
+frontend/src/reportWebVitals.js
+frontend/src/setupTests.js
+frontend/src/translations.js
+frontend/src/utils/envCheck.js
+frontend/src/utils/tokenUtils.js
+frontend_src_backup/App.css
+frontend_src_backup/App.test.js
+frontend_src_backup/components/LoadingModal.js
+frontend_src_backup/components/NavigationButtons.js
+frontend_src_backup/config.js
+frontend_src_backup/index.css
+frontend_src_backup/index.js
+frontend_src_backup/logo.svg
+frontend_src_backup/pages/.gitignore
+frontend_src_backup/pages/About.js
+frontend_src_backup/pages/AccountPage.js
+frontend_src_backup/pages/AccountingReview.js
+frontend_src_backup/pages/App.css
+frontend_src_backup/pages/App.js
+frontend_src_backup/pages/BillSearch.js
+frontend_src_backup/pages/Contact.js
+frontend_src_backup/pages/Dashboard.js
+frontend_src_backup/pages/EditBill.js
+frontend_src_backup/pages/EditDeleteBills.js
+frontend_src_backup/pages/FAQ.js
+frontend_src_backup/pages/ForgotPassword.js
+frontend_src_backup/pages/Home.js
+frontend_src_backup/pages/Login.js
+frontend_src_backup/pages/NavBar.js
+frontend_src_backup/pages/NotFound.js
+frontend_src_backup/pages/Register.js
+frontend_src_backup/pages/ResetPassword.js
+frontend_src_backup/pages/Review.js
+frontend_src_backup/pages/Services.js
+frontend_src_backup/pages/StaffStats.js
+frontend_src_backup/pages/UploadForm.js
+frontend_src_backup/pages/UserApproval.js
+frontend_src_backup/pages/WeChatButton.js
+frontend_src_backup/pages/WhatsAppButton.js
+frontend_src_backup/pages/assets/about.jpg
+frontend_src_backup/pages/assets/contact.jpg
+frontend_src_backup/pages/assets/faq.jpg
+frontend_src_backup/pages/assets/service.jpg
+frontend_src_backup/pages/translations.js
+frontend_src_backup/reportWebVitals.js
+frontend_src_backup/setupTests.js
+frontend_src_backup/translations.js
+frontend_src_backup/utils/envCheck.js
+frontend_src_backup/utils/tokenUtils.js
+migrate_railway_db.ps1
+migrate_railway_db.py
+migrate_railway_db_fixed.py
+migrate_railway_db_simple.ps1
+railway_backup_20250625_094157.sql
+railway_backup_20250625_094315.sql
+rayray-mirror/HEAD
+rayray-mirror/config
+rayray-mirror/description
+rayray-mirror/hooks/applypatch-msg.sample
+rayray-mirror/hooks/commit-msg.sample
+rayray-mirror/hooks/fsmonitor-watchman.sample
+rayray-mirror/hooks/post-update.sample
+rayray-mirror/hooks/pre-applypatch.sample
+rayray-mirror/hooks/pre-commit.sample
+rayray-mirror/hooks/pre-merge-commit.sample
+rayray-mirror/hooks/pre-push.sample
+rayray-mirror/hooks/pre-rebase.sample
+rayray-mirror/hooks/pre-receive.sample
+rayray-mirror/hooks/prepare-commit-msg.sample
+rayray-mirror/hooks/push-to-checkout.sample
+rayray-mirror/hooks/sendemail-validate.sample
+rayray-mirror/hooks/update.sample
+rayray-mirror/info/exclude
+run_migration.bat
+test_token.py
