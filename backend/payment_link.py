@@ -3,7 +3,6 @@ from config import get_db_conn
 import logging
 from datetime import datetime
 import pytz
-from app import limiter  # Import the limiter instance from app.py
 
 # Create a Blueprint for the payment link endpoint
 payment_link = Blueprint('payment_link', __name__)
@@ -11,18 +10,12 @@ payment_link = Blueprint('payment_link', __name__)
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Rate limit: 5 requests per minute per IP address
-# This limit is conservative to prevent abuse of payment link generation
-# while maintaining reasonable functionality for legitimate users.
 @payment_link.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
-@limiter.limit("5 per minute")
 def generate_payment_link(bill_id):
     """
     Generate a dummy payment link for a specific bill and store it in the database.
     Accepts optional parameters in the request body to customize the link.
     """
-    conn = get_db_conn()
-    cur = conn.cursor()
     try:
         # Get data from the request body and print for debugging
         data = request.get_json()
@@ -39,6 +32,10 @@ def generate_payment_link(bill_id):
         # Log the request
         logger.info(f"Generating payment link for bill_id {bill_id} with amount {amount} {currency}")
 
+        # Connect to the database
+        conn = get_db_conn()
+        cur = conn.cursor()
+
         # Fetch bill details (only customer_email and unique_number for now)
         cur.execute("""
             SELECT customer_email, unique_number
@@ -48,6 +45,8 @@ def generate_payment_link(bill_id):
         bill = cur.fetchone()
 
         if not bill:
+            cur.close()
+            conn.close()
             return jsonify({"error": "Bill not found"}), 404
 
         stored_email, unique_number = bill
@@ -61,27 +60,28 @@ def generate_payment_link(bill_id):
         dummy_link = (
             f"https://pay.dummy.com/link/{bill_id}"
             f"?amount={reserve_amount:.2f}"
-            f"&currency={currency}"
+            f"¤cy={currency}"
             f"&email={customer_email}"
             f"&ctn={unique_number or 'None'}"
             f"&description={description.replace(' ', '%20')}"
             f"&success={success_url}"
             f"&cancel={cancel_url}"
-            f"&timestamp={hk_now.strftime('%Y%m%d%H%M%S')}"
+            f"×tamp={hk_now.strftime('%Y%m%d%H%M%S')}"
         )
 
         # Update the database with the dummy payment link
         cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (dummy_link, bill_id))
         conn.commit()
+        cur.close()
+        conn.close()
 
+        # Return the generated payment link
         return jsonify({"payment_link": dummy_link})
 
     except Exception as e:
         logger.error(f"Failed to generate payment link for bill_id {bill_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
-    finally:
-        cur.close()
-        conn.close()
+
 # from flask import Blueprint, request, jsonify
 # from config import get_db_conn
 # import logging

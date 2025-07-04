@@ -37,132 +37,190 @@ allowed_origins = [
     'https://terryraylogicticsco.xyz',
     'https://www.terryraylogicticsco.xyz',
 ]
+# Add environment variable for additional origins
 env_origins = os.getenv('ALLOWED_ORIGINS', '').split(',')
 if env_origins and env_origins[0]:
     allowed_origins.extend([origin.strip() for origin in env_origins])
 
 CORS(app, origins=allowed_origins, supports_credentials=True)
-
-# Initialize Rate Limiter with optimized settings for Render's 512MB RAM
-is_development = os.getenv('FLASK_ENV') == 'development' or os.getenv('FLASK_DEBUG') == 'True'
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    storage_uri="memory://",  # In-memory storage for Render compatibility
-    strategy="moving-window",
-    default_limits=["1000 per day", "100 per hour"] if is_development else ["200 per day", "50 per hour"]
-)
-
-jwt = JWTManager(app)
-
 from payment_webhook import payment_webhook
 from payment_link import payment_link
 
 app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
 app.register_blueprint(payment_link)
 
+
+
+
 @app.route('/api/ping')
-@limiter.limit("5 per minute")  # Added for testing rate limiting
 def ping():
     return {"message": "pong"}, 200
+
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'change-this-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
+jwt = JWTManager(app)
 
-@app.route('/api/upload', methods=['POST'])
-@limiter.limit("5 per hour")  # Limit file uploads
-@jwt_required()  # Added to match token usage in UploadForm.js
-def upload_file():
-    try:
-        if not any(key in request.files for key in ['bill_pdf', 'invoice_pdf', 'packing_pdf']):
-            return jsonify({"error": "No file part"}), 400
-        
-        uploaded_files = {}
-        for key in ['bill_pdf', 'invoice_pdf', 'packing_pdf']:
-            if key in request.files:
-                files = request.files.getlist(key)
-                for file in files:
-                    if file and file.filename.endswith('.pdf'):
-                        filename = f"{key}_{secrets.token_hex(8)}_{file.filename}"
-                        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                        uploaded_files[key] = uploaded_files.get(key, []) + [filename]
-                    else:
-                        return jsonify({"error": f"Invalid file type for {key}"}), 400
-        
-        return jsonify({"message": "Files uploaded", "filenames": uploaded_files}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# Initialize Rate Limiter with conditional limits based on environment
+is_development = os.getenv('FLASK_ENV') == 'development' or os.getenv('FLASK_DEBUG') == 'True'
 
+if is_development:
+    # More lenient limits for development
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["1000 per day", "100 per hour"]
+    )
+else:
+    # Stricter limits for production
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["200 per day", "50 per hour"]
+    )
 
-@app.route('/api/bills', methods=['GET'])
-def get_bills():
-    page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 50))
-    offset = (page - 1) * page_size
-    bl_number = request.args.get('bl_number')
-    status = request.args.get('status')
-    date = request.args.get('date')
-    conn = get_db_conn()
-    cur = conn.cursor()
-
-    where_clauses = []
-    params = []
-    if bl_number:
-        where_clauses.append('bl_number ILIKE %s')
-        params.append(f'%{bl_number}%')
-    if status:
-        where_clauses.append('status = %s')
-        params.append(status)
-    if date:
-        start_date, end_date = get_hk_date_range(date)
-        where_clauses.append('created_at >= %s AND created_at < %s')
-        params.extend([start_date, end_date])
-    where_sql = ' AND '.join(where_clauses) if where_clauses else ''
-
-    count_query = f'SELECT COUNT(*) FROM bill_of_lading {where_sql}'
-    cur.execute(count_query, tuple(params))
-    total_count = cur.fetchone()[0]
-
-    query = f'''
-        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
-               flight_or_vessel, product_description, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list
-        FROM bill_of_lading
-        {where_sql}
-        ORDER BY id DESC
-        LIMIT %s OFFSET %s
-    '''
-    cur.execute(query, tuple(params) + (page_size, offset))
-    rows = cur.fetchall()
-    columns = [desc[0] for desc in cur.description]
-    bills = []
-    for row in rows:
-        bill_dict = dict(zip(columns, row))
-        if bill_dict.get('customer_email') is not None:
-            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
-        if bill_dict.get('customer_phone') is not None:
-            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
-        bills.append(bill_dict)
-
-    cur.close()
-    conn.close()
-
+# Custom error handler for rate limiting
+@app.errorhandler(429)
+def ratelimit_handler(e):
     return jsonify({
-        'bills': bills,
-        'total': total_count,
-        'page': page,
-        'page_size': page_size
-    })
+        'error': 'Too many requests. Please wait before trying again.',
+        'retry_after': getattr(e, 'retry_after', 3600)  # Default to 1 hour
+    }), 429
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+# Initialize Encryption
+# Use a persistent key from environment variables, or generate one if not exists
+encryption_key = os.getenv('ENCRYPTION_KEY')
+if not encryption_key:
+    # Generate a new key and save it (you should save this to your .env file)
+    encryption_key = Fernet.generate_key()
+    print(f"Generated new encryption key: {encryption_key.decode()}")
+    print("Please add this to your .env file as ENCRYPTION_KEY=<key>")
+else:
+    # Convert string key to bytes if needed
+    if isinstance(encryption_key, str):
+        encryption_key = encryption_key.encode()
+
+fernet = Fernet(encryption_key)
+
+# Security Helper Functions
+def validate_password(password):
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    if not any(c.islower() for c in password):
+        return False, "Password must contain at least one lowercase letter"
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one number"
+    if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password):
+        return False, "Password must contain at least one special character"
+    return True, "Password is valid"
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def encrypt_sensitive_data(data):
+    if not data:
+        return data
+    try:
+        if isinstance(data, str):
+            return fernet.encrypt(data.encode()).decode()
+        return data
+    except Exception as e:
+        print(f"Encryption error for data: {data[:50]}... Error: {str(e)}")
+        # If encryption fails, return the original data
+        return data
+
+def decrypt_sensitive_data(encrypted_data):
+    if not encrypted_data:
+        return encrypted_data
+    try:
+        # Check if the data looks like it's encrypted (starts with gAAAAA)
+        if isinstance(encrypted_data, str) and encrypted_data.startswith('gAAAAA'):
+            try:
+                return fernet.decrypt(encrypted_data.encode()).decode()
+            except Exception as decrypt_error:
+                print(f"Decryption failed for data: {encrypted_data[:50]}... Error: {str(decrypt_error)}")
+                # If decryption fails, it might be encrypted with a different key
+                # Return the original data and log the issue
+                return encrypted_data
+        else:
+            # Data is not encrypted, return as is
+            return encrypted_data
+    except Exception as e:
+        print(f"Decryption error for data: {encrypted_data[:50]}... Error: {str(e)}")
+        # If decryption fails, return the original data (assuming it's not encrypted)
+        return encrypted_data
+
+def log_sensitive_operation(user_id, operation, details):
+    # Temporarily disabled until audit_logs table is created
+    # conn = get_db_conn()
+    # cur = conn.cursor()
+    # try:
+    #     cur.execute(
+    #         'INSERT INTO audit_logs (user_id, operation, details, timestamp) VALUES (%s, %s, %s, NOW())',
+    #         (user_id, operation, details)
+    #     )
+    #     conn.commit()
+    # except Exception as e:
+    #     print(f"Error logging operation: {str(e)}")
+    # finally:
+    #     cur.close()
+    #     conn.close()
+    pass
+
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Using get_db_conn from config.py
+
+@app.route('/', methods=['GET'])
+@limiter.exempt
+def root():
+    """Root endpoint with API information"""
+    return jsonify({
+        'message': 'Terry Ray Logistics Shipping System API',
+        'version': '1.0.0',
+        'status': 'running',
+        'endpoints': {
+            'health': '/health',
+            'api_base': '/api',
+            'documentation': 'Check the API endpoints for more information'
+        }
+    }), 200
+
+@app.route('/health', methods=['GET'])
+@limiter.exempt
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Test database connection
+        conn = get_db_conn()
+        if conn:
+            conn.close()
+            return jsonify({
+                'status': 'healthy',
+                'database': 'connected',
+                'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+            }), 200
+        else:
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected',
+                'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+            }), 503
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+        }), 503
 
 @app.route('/api/register', methods=['POST'])
-@limiter.limit("50 per hour" if is_development else "20 per hour")
-@cross_origin()
+@limiter.limit("50 per hour" if is_development else "20 per hour")  # More lenient in development
 def register():
     data = request.get_json()
     username = data.get('username')
@@ -174,6 +232,7 @@ def register():
     if not all([username, password, role, customer_name, customer_email, customer_phone]):
         return jsonify({'error': 'Missing fields'}), 400
     
+    # Validate password
     is_valid, message = validate_password(password)
     if not is_valid:
         return jsonify({'error': message}), 400
@@ -181,6 +240,7 @@ def register():
     try:
         conn = get_db_conn()
         cur = conn.cursor()
+        # Encrypt sensitive data
         encrypted_email = encrypt_sensitive_data(customer_email)
         encrypted_phone = encrypt_sensitive_data(customer_phone)
         
@@ -198,7 +258,6 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 @limiter.limit("5 per minute")
-@cross_origin()
 def login():
     data = request.get_json()
     username = data.get('username')
@@ -236,6 +295,7 @@ def approve_user(user_id):
     conn = get_db_conn()
     cur = conn.cursor()
     cur.execute("UPDATE users SET approved=TRUE WHERE id=%s", (user_id,))
+    # Fetch user email and name
     cur.execute("SELECT customer_email, customer_name FROM users WHERE id=%s", (user_id,))
     row = cur.fetchone()
     conn.commit()
@@ -243,8 +303,10 @@ def approve_user(user_id):
     conn.close()
     if row:
         customer_email, customer_name = row
+        # Decrypt email for sending
         decrypted_email = decrypt_sensitive_data(customer_email) if customer_email else ''
         if decrypted_email:
+            # Send confirmation email
             subject = "Your registration has been approved"
             body = f"Dear {customer_name},\n\nYour registration has been approved. You can now log in and use our services.\n\nThank you!"
             send_simple_email(decrypted_email, subject, body)
@@ -262,6 +324,7 @@ def get_unapproved_users():
     cur.execute('SELECT id, username, customer_name, customer_email, customer_phone, role FROM users WHERE approved = FALSE')
     users = []
     for row in cur.fetchall():
+        # Decrypt email and phone
         decrypted_email = decrypt_sensitive_data(row[3]) if row[3] is not None else ''
         decrypted_phone = decrypt_sensitive_data(row[4]) if row[4] is not None else ''
         users.append({
@@ -285,6 +348,7 @@ def files_by_date():
     query_date = request.args.get('date')
     conn = get_db_conn()
     cur = conn.cursor()
+    # Use timezone-aware date range
     start_date, end_date = get_hk_date_range(query_date)
     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE created_at >= %s AND created_at < %s", (start_date, end_date))
     count = cur.fetchone()[0]
@@ -298,10 +362,12 @@ def completed_today():
     user = json.loads(get_jwt_identity())
     if user['role'] != 'staff':
         return jsonify({'error': 'Unauthorized'}), 403
+    # Use timezone-aware date
     hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
     today = hk_now.date().isoformat()
     conn = get_db_conn()
     cur = conn.cursor()
+    # Use timezone-aware date range
     start_date, end_date = get_hk_date_range(today)
     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status='Completed' AND completed_at >= %s AND completed_at < %s", (start_date, end_date))
     count = cur.fetchone()[0]
@@ -318,6 +384,7 @@ def payments_by_date():
     query_date = request.args.get('date')
     conn = get_db_conn()
     cur = conn.cursor()
+    # Use timezone-aware date range
     start_date, end_date = get_hk_date_range(query_date)
     cur.execute("SELECT SUM(service_fee) FROM bill_of_lading WHERE created_at >= %s AND created_at < %s", (start_date, end_date))
     total = cur.fetchone()[0] or 0
@@ -334,6 +401,7 @@ def bills_by_date():
     query_date = request.args.get('date')
     conn = get_db_conn()
     cur = conn.cursor()
+    # Use timezone-aware date range
     start_date, end_date = get_hk_date_range(query_date)
     cur.execute("""
         SELECT 
@@ -366,13 +434,205 @@ def bills_by_date():
         'entries': entries
     })
 
+@app.route('/api/upload', methods=['POST'])
+@jwt_required()
+def upload():
+    user = json.loads(get_jwt_identity())
+    username = user['username']
+
+    try:
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        bill_pdfs = request.files.getlist('bill_pdf')
+        invoice_pdf = request.files.get('invoice_pdf')
+        packing_pdf = request.files.get('packing_pdf')
+
+        if not name:
+            return jsonify({'error': 'Name is required'}), 400
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        if not phone:
+            return jsonify({'error': 'Phone is required'}), 400
+        if not bill_pdfs and not invoice_pdf and not packing_pdf:
+            return jsonify({'error': 'At least one PDF file is required'}), 400
+
+        def save_file_with_timestamp(file, label):
+            if not file:
+                return None
+            now_str = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%Y-%m-%d_%H%M%S')
+            filename = f"{now_str}_{label}_{file.filename}"
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(file_path)
+            return filename
+
+        uploaded_count = 0
+        results = []
+
+        customer_invoice = save_file_with_timestamp(invoice_pdf, 'invoice') if invoice_pdf else None
+        customer_packing_list = save_file_with_timestamp(packing_pdf, 'packing') if packing_pdf else None
+
+        if bill_pdfs:
+            for bill_pdf in bill_pdfs:
+                pdf_filename = save_file_with_timestamp(bill_pdf, 'bill')
+                fields = {}
+
+                if bill_pdf:
+                    pdf_path = os.path.join(UPLOAD_FOLDER, pdf_filename)
+                    fields = extract_fields(pdf_path)
+
+                # 🔍 Debug print
+                print("flight_or_vessel:", fields.get("flight_or_vessel", ""))
+                print("product_description:", fields.get("product_description", ""))
+
+                fields_json = json.dumps(fields)
+                hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+
+                conn = get_db_conn()
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO bill_of_lading (
+                        customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
+                        shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
+                        flight_or_vessel, product_description, status,
+                        customer_username, created_at, customer_invoice, customer_packing_list
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    name, str(email), str(phone), pdf_filename, fields_json,
+                    str(fields.get('shipper', '')),
+                    str(fields.get('consignee', '')),
+                    str(fields.get('port_of_loading', '')),
+                    str(fields.get('port_of_discharge', '')),
+                    str(fields.get('bl_number', '')),
+                    str(fields.get('container_numbers', '')),
+                    str(fields.get('flight_or_vessel', '')),
+                    str(fields.get('product_description', '')),
+                    "Pending",
+                    username,
+                    hk_now,
+                    customer_invoice,
+                    customer_packing_list
+                ))
+                conn.commit()
+                cur.close()
+                conn.close()
+                uploaded_count += 1
+        else:
+            hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
+            conn = get_db_conn()
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO bill_of_lading (
+                    customer_name, customer_email, customer_phone, pdf_filename, ocr_text,
+                    shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers, status,
+                    customer_username, created_at, customer_invoice, customer_packing_list
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                name, str(email), str(phone), None, None,
+                '', '', '', '', '', '',
+                "Pending",
+                username,
+                hk_now,
+                customer_invoice,
+                customer_packing_list
+            ))
+            conn.commit()
+            cur.close()
+            conn.close()
+            uploaded_count += 1
+
+        try:
+            if EmailConfig.SMTP_SERVER and EmailConfig.SMTP_USERNAME and EmailConfig.SMTP_PASSWORD:
+                subject = "We have received your Bill of Lading"
+                body = f"Dear {name},\n\nWe have received your documents. Our team will be in touch with you within 24 hours.\n\nThank you!"
+                send_simple_email(email, subject, body)
+        except Exception as e:
+            print(f"Failed to send confirmation email: {str(e)}")
+
+        return jsonify({'message': f'Upload successful! {uploaded_count} bill(s) uploaded.'})
+
+    except Exception as e:
+        print(f"Error processing upload: {str(e)}")
+        return jsonify({'error': f'Error processing upload: {str(e)}'}), 400
+
+
+@app.route('/api/bills', methods=['GET'])
+def get_bills():
+    page = int(request.args.get('page', 1))
+    page_size = int(request.args.get('page_size', 50))
+    offset = (page - 1) * page_size
+    bl_number = request.args.get('bl_number')
+    status = request.args.get('status')
+    date = request.args.get('date')
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    # Build WHERE clause
+    where_clauses = []
+    params = []
+    if bl_number:
+        where_clauses.append('bl_number ILIKE %s')
+        params.append(f'%{bl_number}%')
+    if status:
+        where_clauses.append('status = %s')
+        params.append(status)
+    if date:
+        start_date, end_date = get_hk_date_range(date)
+        where_clauses.append('created_at >= %s AND created_at < %s')
+        params.extend([start_date, end_date])
+    where_sql = ' AND '.join(where_clauses)
+    if where_sql:
+        where_sql = 'WHERE ' + where_sql
+
+    # Get total count for pagination
+    count_query = f'SELECT COUNT(*) FROM bill_of_lading {where_sql}'
+    cur.execute(count_query, tuple(params))
+    total_count = cur.fetchone()[0]
+
+    # Get paginated results
+    query = f'''
+        SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number, container_numbers,
+               flight_or_vessel, product_description,  -- <-- add here
+               service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, customer_invoice, customer_packing_list
+        FROM bill_of_lading
+        {where_sql}
+        ORDER BY id DESC
+        LIMIT %s OFFSET %s
+    '''
+    cur.execute(query, tuple(params) + (page_size, offset))
+    rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    bills = []
+    for row in rows:
+        bill_dict = dict(zip(columns, row))
+        # Decrypt email and phone
+        if bill_dict.get('customer_email') is not None:
+            bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
+        if bill_dict.get('customer_phone') is not None:
+            bill_dict['customer_phone'] = decrypt_sensitive_data(bill_dict['customer_phone'])
+        bills.append(bill_dict)
+
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        'bills': bills,
+        'total': total_count,
+        'page': page,
+        'page_size': page_size
+    })
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
 @app.route('/api/bill/<int:bill_id>/upload_receipt', methods=['POST'])
 def upload_receipt(bill_id):
     if 'receipt' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
     receipt = request.files['receipt']
     filename = f"receipt_{bill_id}_{receipt.filename}"
-    receipt_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    receipt_path = os.path.join(UPLOAD_FOLDER, filename)
     receipt.save(receipt_path)
 
     hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
@@ -401,6 +661,7 @@ def bill_detail(bill_id):
             return jsonify({'error': 'Bill not found'}), 404
         columns = [desc[0] for desc in cur.description]
         bill = dict(zip(columns, bill_row))
+        # Decrypt sensitive fields
         if bill.get('customer_email') is not None:
             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
         if bill.get('customer_phone') is not None:
@@ -420,12 +681,13 @@ def bill_detail(bill_id):
             return jsonify({'error': 'Bill not found'}), 404
         columns = [desc[0] for desc in cur.description]
         bill = dict(zip(columns, bill_row))
+        # Allow updating all relevant fields, including new ones
         updatable_fields = [
             'customer_name', 'customer_email', 'customer_phone', 'bl_number',
             'shipper', 'consignee', 'port_of_loading', 'port_of_discharge',
             'container_numbers', 'service_fee', 'ctn_fee', 'payment_link', 'unique_number',
             'flight_or_vessel', 'product_description',
-            'payment_method', 'payment_status', 'reserve_status'
+            'payment_method', 'payment_status', 'reserve_status'  # <-- new fields
         ]
         update_fields = []
         update_values = []
@@ -449,14 +711,17 @@ def bill_detail(bill_id):
             """
             cur.execute(update_query, tuple(update_values))
             conn.commit()
+        # Fetch updated bill
         cur.execute("SELECT * FROM bill_of_lading WHERE id=%s", (bill_id,))
         bill_row = cur.fetchone()
         columns = [desc[0] for desc in cur.description]
         bill = dict(zip(columns, bill_row))
+        # Decrypt sensitive fields
         if bill.get('customer_email') is not None:
             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
         if bill.get('customer_phone') is not None:
             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
+        # Regenerate invoice PDF if relevant fields changed
         customer = {
             'name': bill['customer_name'],
             'email': bill['customer_email'],
@@ -470,16 +735,19 @@ def bill_detail(bill_id):
         cur.close()
         conn.close()
         return jsonify(bill)
-
+    
 @app.route('/api/bill/<int:bill_id>/settle_reserve', methods=['POST'])
 @jwt_required()
 def settle_reserve(bill_id):
     conn = get_db_conn()
     cur = conn.cursor()
     try:
+        # Check if bill exists
         cur.execute("SELECT id FROM bill_of_lading WHERE id = %s", (bill_id,))
         if not cur.fetchone():
             return jsonify({"error": "Bill not found"}), 404
+
+        # Update reserve_status field to 'Reserve Settled'
         cur.execute("""
             UPDATE bill_of_lading
             SET reserve_status = 'Reserve Settled'
@@ -492,22 +760,26 @@ def settle_reserve(bill_id):
         return jsonify({"error": "Failed to settle reserve"}), 500
     finally:
         cur.close()
-        conn.close()
+        conn.close()   
+
 
 @app.route('/api/bill/<int:bill_id>/complete', methods=['POST'])
 def complete_bill(bill_id):
     conn = get_db_conn()
     cur = conn.cursor()
     hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
+    # Check payment_method for this bill
     cur.execute("SELECT payment_method FROM bill_of_lading WHERE id=%s", (bill_id,))
     row = cur.fetchone()
     if row and row[0] and row[0].lower() == 'allinpay':
+        # For Allinpay, also update payment_status to 'Paid 100%'
         cur.execute("""
             UPDATE bill_of_lading
             SET status=%s, payment_status=%s, completed_at=%s
             WHERE id=%s
         """, ('Paid and CTN Valid', 'Paid 100%', hk_now, bill_id))
     else:
+        # For others, just update status and completed_at
         cur.execute("""
             UPDATE bill_of_lading
             SET status=%s, completed_at=%s
@@ -518,6 +790,8 @@ def complete_bill(bill_id):
     conn.close()
     return jsonify({'message': 'Bill marked as completed'})
 
+
+
 @app.route('/api/search_bills', methods=['POST'])
 @jwt_required()
 def search_bills():
@@ -526,8 +800,8 @@ def search_bills():
     customer_id = data.get('customer_id', '')
     created_at = data.get('created_at', '')
     bl_number = data.get('bl_number', '')
-    unique_number = data.get('unique_number', '')
-    username = data.get('username', '')
+    unique_number = data.get('unique_number', '')  # Add support for CTN number search
+    username = data.get('username', '')  # Add support for username search
     
     conn = get_db_conn()
     cur = conn.cursor()
@@ -544,15 +818,18 @@ def search_bills():
         params.append(f'%{customer_name}%')
     
     if customer_id:
+        # Validate that customer_id is a number
         try:
             int(customer_id)
             query += ' AND id = %s'
             params.append(customer_id)
         except ValueError:
+            # If not a number, search by customer name instead
             query += ' AND customer_name ILIKE %s'
             params.append(f'%{customer_id}%')
     
     if created_at:
+        # Use timezone-aware date range for created_at
         start_date, end_date = get_hk_date_range(created_at)
         query += ' AND created_at >= %s AND created_at < %s'
         params.extend([start_date, end_date])
@@ -578,6 +855,7 @@ def search_bills():
     bills = []
     for row in rows:
         bill_dict = dict(zip(columns, row))
+        # Decrypt email and phone
         if bill_dict.get('customer_email') is not None:
             bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
         if bill_dict.get('customer_phone') is not None:
@@ -595,6 +873,7 @@ def set_unique_number(bill_id):
     if not unique_number:
         return jsonify({'error': 'Missing unique number'}), 400
 
+    # Update DB
     conn = get_db_conn()
     cur = conn.cursor()
     cur.execute("""
@@ -604,6 +883,7 @@ def set_unique_number(bill_id):
     """, (unique_number, bill_id))
     conn.commit()
 
+    # Fetch customer email
     cur.execute("SELECT customer_email, customer_name FROM bill_of_lading WHERE id=%s", (bill_id,))
     row = cur.fetchone()
     cur.close()
@@ -611,6 +891,7 @@ def set_unique_number(bill_id):
 
     if row:
         customer_email, customer_name = row
+        # Send email
         send_unique_number_email(customer_email, customer_name, unique_number)
 
     return jsonify({'message': 'Unique number saved and email sent'})
@@ -630,12 +911,14 @@ def api_send_unique_number_email():
         if not all([to_email, subject, body, bill_id]):
             return jsonify({'error': 'Missing required fields'}), 400
 
+        # Validate bill_id exists
         conn = get_db_conn()
         cur = conn.cursor()
         cur.execute("SELECT id FROM bill_of_lading WHERE id=%s", (bill_id,))
         if not cur.fetchone():
             return jsonify({'error': 'Bill not found'}), 404
 
+        # Send email
         send_unique_number_email(to_email, subject, body)
 
         return jsonify({'message': 'Unique number email sent successfully'}), 200
@@ -655,6 +938,7 @@ def get_me():
     cur.close()
     conn.close()
     if row:
+        # Decrypt email and phone
         decrypted_email = decrypt_sensitive_data(row[1]) if row[1] is not None else ''
         decrypted_phone = decrypt_sensitive_data(row[2]) if row[2] is not None else ''
         return jsonify({
@@ -696,6 +980,7 @@ def contact():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/api/stats/summary')
 @jwt_required()
 def stats_summary():
@@ -706,12 +991,15 @@ def stats_summary():
     conn = get_db_conn()
     cur = conn.cursor()
 
+    # Total bills
     cur.execute("SELECT COUNT(*) FROM bill_of_lading")
     total_bills = cur.fetchone()[0]
 
+    # Completed = Paid and CTN Valid
     cur.execute("SELECT COUNT(*) FROM bill_of_lading WHERE status = 'Paid and CTN Valid'")
     completed_bills = cur.fetchone()[0]
 
+    # Pending = Pending
     cur.execute("""
     SELECT COUNT(*) 
     FROM bill_of_lading 
@@ -719,9 +1007,11 @@ def stats_summary():
 """)
     pending_bills = cur.fetchone()[0]
 
+    # ✅ Total invoice amount = sum(ctn_fee + service_fee)
     cur.execute("SELECT COALESCE(SUM(ctn_fee + service_fee), 0) FROM bill_of_lading")
     total_invoice_amount = float(cur.fetchone()[0] or 0)
 
+    # ✅ Total Payment Received (Bank + Allinpay 100% + Allinpay 85%)
     cur.execute("""
         SELECT COALESCE(SUM(
             CASE 
@@ -738,6 +1028,7 @@ def stats_summary():
     """)
     total_payment_received = float(cur.fetchone()[0] or 0)
 
+    # ✅ Total Payment Outstanding = Awaiting Bank In + reserve_amount (unsettled)
     cur.execute("""
     SELECT COALESCE(SUM(service_fee + ctn_fee), 0)
     FROM bill_of_lading
@@ -761,6 +1052,8 @@ def stats_summary():
         'total_payment_received': round(total_payment_received, 2),
         'total_payment_outstanding': round(total_payment_outstanding, 2)
     })
+
+
 
 @app.route('/api/stats/outstanding_bills')
 @jwt_required()
@@ -791,13 +1084,26 @@ def outstanding_bills():
         ctn_fee = float(bill.get('ctn_fee') or 0)
         service_fee = float(bill.get('service_fee') or 0)
 
+        # Force lowercase + trim for reliability
         payment_method = str(bill.get('payment_method') or '').strip().lower()
         reserve_status = str(bill.get('reserve_status') or '').strip().lower()
 
+        # Default: full invoice amount
         outstanding_amount = round(ctn_fee + service_fee, 2)
 
+        # Adjust for Allinpay Unsettled (15%)
         if payment_method == 'allinpay' and reserve_status == 'unsettled':
             outstanding_amount = round(ctn_fee * 0.15 + service_fee * 0.15, 2)
+
+        # Debug log to console
+        print("DEBUG BILL:", {
+            "bl_number": bill.get("bl_number"),
+            "payment_method": payment_method,
+            "reserve_status": reserve_status,
+            "ctn_fee": ctn_fee,
+            "service_fee": service_fee,
+            "calculated_outstanding": outstanding_amount,
+        })
 
         bill['outstanding_amount'] = outstanding_amount
         bills.append(bill)
@@ -830,7 +1136,7 @@ def request_password_reset():
     if not user:
         cur.close()
         conn.close()
-        return jsonify({'message': 'If this email is registered, a reset link will be sent.'})
+        return jsonify({'message': 'If this email is registered, a reset link will be sent.'})  # Don't reveal user existence
 
     user_id, customer_name = user
     token = secrets.token_urlsafe(32)
@@ -892,15 +1198,19 @@ def send_invoice_email_endpoint():
         if not all([to_email, subject, body, pdf_url, bill_id]):
             return jsonify({'error': 'Missing required fields'}), 400
 
+        # Fix: Extract just the filename if pdf_url is a full URL
+        import os
         if pdf_url.startswith('http://') or pdf_url.startswith('https://'):
             pdf_filename = os.path.basename(pdf_url)
         else:
             pdf_filename = pdf_url.lstrip('/')
         pdf_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', pdf_filename)
         
+        # Send the email
         success = send_invoice_email(to_email, subject, body, pdf_path)
         
         if success:
+            # Update bill status to "Invoice Sent"
             conn = get_db_conn()
             cur = conn.cursor()
             cur.execute("UPDATE bill_of_lading SET status=%s WHERE id=%s", ("Invoice Sent", bill_id))
@@ -917,6 +1227,10 @@ def send_invoice_email_endpoint():
 
 # Helper function for timezone-aware date queries
 def get_hk_date_range(search_date_str):
+    """
+    Convert a date string (YYYY-MM-DD) to Hong Kong timezone range for database queries.
+    Returns (start_datetime, end_datetime) in Hong Kong timezone.
+    """
     hk_tz = pytz.timezone('Asia/Hong_Kong')
     search_date = datetime.strptime(search_date_str, '%Y-%m-%d')
     search_date = hk_tz.localize(search_date)
@@ -931,6 +1245,7 @@ def account_bills():
     conn = get_db_conn()
     cur = conn.cursor()
 
+    # Build base query
     select_clause = '''
         SELECT id, customer_name, customer_email, customer_phone, pdf_filename,
                shipper, consignee, port_of_loading, port_of_discharge, bl_number,
@@ -948,6 +1263,7 @@ def account_bills():
 
     if completed_at:
         start_date, end_date = get_hk_date_range(completed_at)
+        print("DEBUG: start_date", start_date, "end_date", end_date)
         where_clauses.append(
             "((payment_method = 'Allinpay' AND allinpay_85_received_at >= %s AND allinpay_85_received_at < %s) "
             "OR (payment_method = 'Allinpay' AND completed_at >= %s AND completed_at < %s) "
@@ -978,22 +1294,33 @@ def account_bills():
     for row in rows:
         bill = dict(zip(columns, row))
 
+        # Decrypt sensitive fields
         if bill.get('customer_email'):
             bill['customer_email'] = decrypt_sensitive_data(bill['customer_email'])
         if bill.get('customer_phone'):
             bill['customer_phone'] = decrypt_sensitive_data(bill['customer_phone'])
 
-        ctn_fee = float(bill.get('ctn_fee') or 0)
-        service_fee = float(bill.get('service_fee') or 0)
+        try:
+            ctn_fee = float(bill.get('ctn_fee') or 0)
+            service_fee = float(bill.get('service_fee') or 0)
+        except (TypeError, ValueError):
+            ctn_fee = 0
+            service_fee = 0
 
+        # Default: show original values
         bill['display_ctn_fee'] = ctn_fee
         bill['display_service_fee'] = service_fee
 
+        # 85%/15% logic for Allinpay
         if bill.get('payment_method') == 'Allinpay':
             allinpay_85_dt = bill.get('allinpay_85_received_at')
+            is_85 = False
             if allinpay_85_dt:
                 if isinstance(allinpay_85_dt, str):
-                    allinpay_85_dt = parser.isoparse(allinpay_85_dt)
+                    try:
+                        allinpay_85_dt = parser.isoparse(allinpay_85_dt)
+                    except Exception:
+                        allinpay_85_dt = None
                 if allinpay_85_dt and allinpay_85_dt.tzinfo is None:
                     allinpay_85_dt = allinpay_85_dt.replace(tzinfo=pytz.UTC)
                 if completed_at and allinpay_85_dt and start_date <= allinpay_85_dt < end_date:
@@ -1001,23 +1328,31 @@ def account_bills():
                     bill['display_service_fee'] = round(service_fee * 0.85, 2)
                     total_allinpay_85_ctn += bill['display_ctn_fee']
                     total_allinpay_85_service += bill['display_service_fee']
+                    is_85 = True
             reserve_status = (bill.get('reserve_status') or '').lower()
             completed_dt = bill.get('completed_at')
             if completed_dt:
                 if isinstance(completed_dt, str):
-                    completed_dt = parser.isoparse(completed_dt)
+                    try:
+                        completed_dt = parser.isoparse(completed_dt)
+                    except Exception:
+                        completed_dt = None
                 if completed_dt and completed_dt.tzinfo is None:
                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
-            if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date:
+            if reserve_status in ['settled', 'reserve settled'] and completed_at and completed_dt and start_date <= completed_dt < end_date and not is_85:
                 bill['display_ctn_fee'] = round(ctn_fee * 0.15, 2)
                 bill['display_service_fee'] = round(service_fee * 0.15, 2)
                 total_reserve_ctn += bill['display_ctn_fee']
                 total_reserve_service += bill['display_service_fee']
         else:
+            # Bank Transfer: always show full amount, but only count in summary if in date range
             completed_dt = bill.get('completed_at')
             if completed_dt:
                 if isinstance(completed_dt, str):
-                    completed_dt = parser.isoparse(completed_dt)
+                    try:
+                        completed_dt = parser.isoparse(completed_dt)
+                    except Exception:
+                        completed_dt = None
                 if completed_dt and completed_dt.tzinfo is None:
                     completed_dt = completed_dt.replace(tzinfo=pytz.UTC)
             if completed_at and completed_dt and start_date <= completed_dt < end_date:
@@ -1040,6 +1375,25 @@ def account_bills():
 
     return jsonify({'bills': bills, 'summary': summary})
 
+
+@app.route('/api/generate_payment_link/<int:bill_id>', methods=['POST'])
+def generate_payment_link(bill_id):
+    try:
+        # Simulate link (replace with real Allinpay/Stripe call later)
+        payment_link = f"https://pay.example.com/link/{bill_id}"
+
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE bill_of_lading SET payment_link = %s WHERE id = %s", (payment_link, bill_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({"payment_link": payment_link})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/bills/status/<status>', methods=['GET'])
 def get_bills_by_status(status):
     conn = get_db_conn()
@@ -1057,6 +1411,7 @@ def get_bills_by_status(status):
     bills = []
     for row in rows:
         bill_dict = dict(zip(columns, row))
+        # Decrypt email and phone
         if bill_dict.get('customer_email') is not None:
             bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
         if bill_dict.get('customer_phone') is not None:
@@ -1078,6 +1433,8 @@ def get_awaiting_bank_in_bills():
         where_clauses = []
         params = []
 
+        # Remove reserve_status filter!
+        # Only filter by status/payment_method and optional bl_number
         if bl_number:
             where_clauses.append(
                 "((status = 'Awaiting Bank In' AND bl_number ILIKE %s) OR "
@@ -1106,6 +1463,7 @@ def get_awaiting_bank_in_bills():
         bills = []
         for row in rows:
             bill_dict = dict(zip(columns, row))
+            # Decrypt email and phone if needed
             if bill_dict.get('customer_email') is not None:
                 bill_dict['customer_email'] = decrypt_sensitive_data(bill_dict['customer_email'])
             if bill_dict.get('customer_phone') is not None:
@@ -1125,6 +1483,8 @@ def get_awaiting_bank_in_bills():
         except:
             pass
 
+
+
 @app.route('/api/request_username', methods=['POST'])
 def request_username():
     data = request.get_json()
@@ -1132,6 +1492,9 @@ def request_username():
 
     if not email:
         return jsonify({'error': 'Email is required'}), 400
+
+    conn = get_db_conn()
+    cur = conn.cursor()
 
     conn = get_db_conn()
     cur = conn.cursor()
@@ -1144,6 +1507,7 @@ def request_username():
     for row in users:
         db_username, encrypted_email = row
         try:
+            decrypted_email = decrypt_sensitive_data(encrypted_email)
             decrypted_email = decrypt_sensitive_data(encrypted_email)
             if decrypted_email == email:
                 username = db_username
@@ -1163,6 +1527,35 @@ def request_username():
     except Exception as e:
         return jsonify({'error': f'Email failed: {str(e)}'}), 500
 
+def notify_new_user():
+    data = request.get_json()
+    customer_username = data.get('username')  # from frontend it's still called 'username'
+    email = data.get('email')
+    role = data.get('role')
+
+    # Replace with your actual admin email
+    admin_email = 'ray6330099@gmail.com'
+    subject = f"📬 New User Registration: {customer_username}"
+    body = f"""Hi Admin,
+
+A new user has just registered on the system.
+
+Username: {customer_username}
+Email: {email}
+Role: {role}
+
+You can log in to review and approve the user if necessary.
+
+Best regards,
+Your System
+"""
+    try:
+        send_simple_email(admin_email, subject, body)
+        return jsonify({'message': 'Notification email sent'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.errorhandler(404)
 def not_found(e):
     return '<h1>404 - Page Not Found</h1><p>Sorry, the page you are looking for does not exist.</p>', 404
@@ -1173,99 +1566,6 @@ def internal_error(e):
     return '<h1>500 - Internal Server Error</h1><p>Sorry, something went wrong on our end. Please try again later.</p>', 500
 
 if __name__ == '__main__':
+    import os
     port = int(os.environ.get('PORT', 8000))
     app.run(host='0.0.0.0', port=port)
-
-# Initialize Encryption
-encryption_key = os.getenv('ENCRYPTION_KEY')
-if not encryption_key:
-    encryption_key = Fernet.generate_key()
-    print(f"Generated new encryption key: {encryption_key.decode()}")
-    print("Please add this to your .env file as ENCRYPTION_KEY=<key>")
-else:
-    if isinstance(encryption_key, str):
-        encryption_key = encryption_key.encode()
-fernet = Fernet(encryption_key)
-
-# Security Helper Functions
-def validate_password(password):
-    if len(password) < 8:
-        return False, "Password must be at least 8 characters long"
-    if not any(c.isupper() for c in password):
-        return False, "Password must contain at least one uppercase letter"
-    if not any(c.islower() for c in password):
-        return False, "Password must contain at least one lowercase letter"
-    if not any(c.isdigit() for c in password):
-        return False, "Password must contain at least one number"
-    if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password):
-        return False, "Password must contain at least one special character"
-    return True, "Password is valid"
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
-
-def encrypt_sensitive_data(data):
-    if not data:
-        return data
-    try:
-        if isinstance(data, str):
-            return fernet.encrypt(data.encode()).decode()
-        return data
-    except Exception as e:
-        print(f"Encryption error for data: {data[:50]}... Error: {str(e)}")
-        return data
-
-def decrypt_sensitive_data(encrypted_data):
-    if not encrypted_data:
-        return encrypted_data
-    try:
-        if isinstance(encrypted_data, str) and encrypted_data.startswith('gAAAAA'):
-            return fernet.decrypt(encrypted_data.encode()).decode()
-        return encrypted_data
-    except Exception as e:
-        print(f"Decryption error for data: {encrypted_data[:50]}... Error: {str(e)}")
-        return encrypted_data
-
-def log_sensitive_operation(user_id, operation, details):
-    pass  # Temporarily disabled until audit_logs table is created
-
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-@app.route('/', methods=['GET'])
-@limiter.exempt
-def root():
-    return jsonify({
-        'message': 'Terry Ray Logistics Shipping System API',
-        'version': '1.0.0',
-        'status': 'running',
-        'endpoints': {
-            'health': '/health',
-            'api_base': '/api',
-            'documentation': 'Check the API endpoints for more information'
-        }
-    }), 200
-
-@app.route('/health', methods=['GET'])
-@limiter.exempt
-def health_check():
-    try:
-        conn = get_db_conn()
-        if conn:
-            conn.close()
-            return jsonify({
-                'status': 'healthy',
-                'database': 'connected',
-                'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
-            }), 200
-        return jsonify({
-            'status': 'unhealthy',
-            'database': 'disconnected',
-            'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
-        }), 503
-    except Exception as e:
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e),
-            'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
-        }), 503
