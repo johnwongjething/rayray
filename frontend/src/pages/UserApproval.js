@@ -11,47 +11,58 @@ function UserApproval({ t = x => x }) {
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
+    const token = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='))?.split('=')[1];
+    if (!token) {
+      setError('Not authenticated');
+      setLoading(false);
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE_URL}/api/unapproved_users`, {
         credentials: 'include',
+        headers: { 'Authorization': `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Failed to fetch users');
       const data = await response.json();
-      setUsers(Array.isArray(data) ? data : (data.users || []));
+      setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError('Failed to fetch users');
+      setError(err.message);
       setUsers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const handleApprove = async (userId) => {
+    const token = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='))?.split('=')[1];
+    if (!token) {
+      setSnackbar({ open: true, message: 'Not authenticated', severity: 'error' });
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE_URL}/api/approve_user/${userId}`, {
         method: 'POST',
         credentials: 'include',
+        headers: { 'Authorization': `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Failed to approve user');
-      setSnackbar({ open: true, message: t('userApproved') || 'User approved successfully', severity: 'success' });
+      setSnackbar({ open: true, message: t('userApproved') || 'User approved', severity: 'success' });
       fetchUsers();
     } catch (err) {
-      setSnackbar({ open: true, message: t('failedToApproveUser') || 'Failed to approve user', severity: 'error' });
-      setError('Failed to approve user');
+      setSnackbar({ open: true, message: t('failedToApproveUser') || 'Approval failed', severity: 'error' });
     }
   };
 
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
+  const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
 
   return (
     <Container>
       <Typography variant="h4" gutterBottom>{t('userApproval')}</Typography>
-      {loading ? <CircularProgress /> :
-        error ? <Alert severity="error">{error}</Alert> :
+      {loading ? <CircularProgress /> : error ? <Alert severity="error">{error}</Alert> : (
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
@@ -76,14 +87,8 @@ function UserApproval({ t = x => x }) {
             </TableBody>
           </Table>
         </TableContainer>
-      }
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={handleCloseSnackbar}
-        message={snackbar.message}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      />
+      )}
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleCloseSnackbar} message={snackbar.message} />
     </Container>
   );
 }

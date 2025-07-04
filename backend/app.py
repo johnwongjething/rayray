@@ -4,46 +4,43 @@ from flask_cors import CORS, cross_origin
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
-from datetime import date, datetime, timedelta
-from invoice_utils import generate_invoice_pdf
-from email_utils import send_invoice_email, send_unique_number_email, send_contact_email, send_simple_email
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import secrets
 import psycopg2
-from config import DatabaseConfig, get_db_conn, EmailConfig
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.utils import formataddr
-import smtplib
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
 from cryptography.fernet import Fernet
 import re
-from extract_fields import extract_fields
 import pytz
 from werkzeug.middleware.proxy_fix import ProxyFix
-from dateutil import parser
 from flask_wtf import CSRFProtect
 import logging
+import traceback
 
 load_dotenv()
 
 app = Flask(__name__)
 csrf = CSRFProtect(app)
-
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16))  # Default to a random key if not set
-
-# Add ProxyFix middleware to handle X-Forwarded-For headers
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16))
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
-# Initialize Rate Limiter with memory storage
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    storage_uri="memory://",  # Use in-memory storage
-)
+# Rate limiting
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+limiter = Limiter(get_remote_address, app=app, storage_uri="memory://")
 
+# JWT configuration
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'change-this-in-production')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+jwt = JWTManager(app)
+
+# CORS
+allowed_origins = ['http://localhost:3000', 'https://terryraylogicticsco.xyz', 'https://www.terryraylogicticsco.xyz']
+env_origins = os.getenv('ALLOWED_ORIGINS', '').split(',')
+if env_origins and env_origins[0]:
+    allowed_origins.extend([origin.strip() for origin in env_origins])
+CORS(app, origins=allowed_origins, supports_credentials=True)
+
+is_development = os.getenv('FLASK_ENV', 'development') == 'development'
 
 if os.getenv('FLASK_ENV') == 'production':
     @app.before_request
@@ -51,35 +48,41 @@ if os.getenv('FLASK_ENV') == 'production':
         if not request.is_secure and request.headers.get('X-Forwarded-Proto', 'http') != 'https':
             url = request.url.replace('http://', 'https://', 1)
             return redirect(url, code=301)
-            
-# CORS configuration for both development and production
-allowed_origins = [
-    'http://localhost:3000',  # Development
-    'https://terryraylogicticsco.xyz',
-    'https://www.terryraylogicticsco.xyz',
-]
-# Add environment variable for additional origins
-env_origins = os.getenv('ALLOWED_ORIGINS', '').split(',')
-if env_origins and env_origins[0]:
-    allowed_origins.extend([origin.strip() for origin in env_origins])
 
-is_development = os.getenv('FLASK_ENV', 'development') == 'development'
+# Encryption
+encryption_key = os.environ.get('ENCRYPTION_KEY')
+if not encryption_key:
+    encryption_key = Fernet.generate_key().decode()
+    print(f"Generated encryption key: {encryption_key}. Add to .env as ENCRYPTION_KEY.")
+fernet = Fernet(encryption_key.encode() if isinstance(encryption_key, str) else encryption_key)
 
-CORS(app, origins=allowed_origins, supports_credentials=True)
-from payment_webhook import payment_webhook
-from payment_link import payment_link
+# Security helpers
+def validate_password(password):
+    return (len(password) >= 8 and any(c.isupper() for c in password) and
+            any(c.islower() for c in password) and any(c.isdigit() for c in password) and
+            any(c in "!@#$%^&*()" for c in password)), "Password must meet complexity requirements"
 
-app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
-app.register_blueprint(payment_link)
+def encrypt_sensitive_data(data):
+    return fernet.encrypt(data.encode()).decode() if data else data
 
+def decrypt_sensitive_data(encrypted_data):
+    return fernet.decrypt(encrypted_data.encode()).decode() if encrypted_data and encrypted_data.startswith('gAAAAA') else encrypted_data
 
+def get_db_conn():
+    return psycopg2.connect(os.environ.get('DATABASE_URL'))
 
+# Logging
+audit_logger = logging.getLogger('audit')
+audit_logger.setLevel(logging.INFO)
+audit_handler = logging.FileHandler('audit.log')
+audit_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+audit_logger.addHandler(audit_handler)
 
+# Routes
 @app.route('/api/ping')
 @limiter.limit("5 per minute")
 def ping():
-    return {"message": "pong"}, 200
-
+    return jsonify({"message": "pong"}), 200
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'change-this-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
@@ -227,37 +230,25 @@ def health_check():
         }), 503
 
 @app.route('/api/register', methods=['POST'])
-@limiter.limit("50 per hour" if is_development else "20 per hour")  # More lenient in development
+@limiter.limit("50 per hour" if is_development else "20 per hour")
 @csrf.exempt
 def register():
     data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role')
-    customer_name = data.get('customer_name')
-    customer_email = data.get('customer_email')
-    customer_phone = data.get('customer_phone')
-    if not all([username, password, role, customer_name, customer_email, customer_phone]):
+    if not all(k in data for k in ['username', 'password', 'role', 'customer_name', 'customer_email', 'customer_phone']):
         return jsonify({'error': 'Missing fields'}), 400
-    
-    # Validate password
-    is_valid, message = validate_password(password)
+    is_valid, message = validate_password(data['password'])
     if not is_valid:
         return jsonify({'error': message}), 400
-    
     try:
         conn = get_db_conn()
         cur = conn.cursor()
-        # Encrypt sensitive data
-        encrypted_email = encrypt_sensitive_data(customer_email)
-        encrypted_phone = encrypt_sensitive_data(customer_phone)
-        
         cur.execute(
-            "INSERT INTO users (username, password_hash, role, customer_name, customer_email, customer_phone) VALUES (%s, %s, %s, %s, %s, %s)",
-            (username, generate_password_hash(password), role, customer_name, encrypted_email, encrypted_phone)
+            "INSERT INTO users (username, password_hash, role, customer_name, customer_email, customer_phone, approved) VALUES (%s, %s, %s, %s, %s, %s, FALSE)",
+            (data['username'], generate_password_hash(data['password']), data['role'], data['customer_name'],
+             encrypt_sensitive_data(data['customer_email']), encrypt_sensitive_data(data['customer_phone']))
         )
         conn.commit()
-        log_sensitive_operation(None, 'register', f'New user registered: {username}')
+        audit_logger.info(f"New user registered: {data['username']}")
         cur.close()
         conn.close()
         return jsonify({'message': 'Registration submitted, waiting for approval.'})
@@ -301,42 +292,30 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id, password_hash, role, approved, customer_name, customer_email, customer_phone FROM users WHERE username=%s", (username,))
-    user = cur.fetchone()
-    cur.close()
-    conn.close()
-    if not user:
-        audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
-        return jsonify({'error': 'User not found'}), 401
-    user_id, password_hash, role, approved, customer_name, customer_email, customer_phone = user
-    if not approved:
-        return jsonify({'error': 'User not approved yet'}), 403
-    if not check_password_hash(password_hash, password):
-        audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
-        return jsonify({'error': 'Incorrect password'}), 401
-    access_token = create_access_token(identity=json.dumps({'id': user_id, 'role': role, 'username': username}))
-    log_sensitive_operation(user_id, 'login', 'User logged in successfully')
-    audit_logger.info(f"LOGIN SUCCESS: user={username} ip={request.remote_addr}")
-
-    # Set JWT as a cookie
-    resp = make_response(jsonify({
-        "access_token": access_token,
-        "customer_name": customer_name,
-        "customer_email": customer_email,
-        "customer_phone": customer_phone,
-        'role': role,
-        'username': username
-    }), 200)
-    resp.set_cookie(
-        'access_token_cookie',
-        access_token,
-        httponly=True,
-        secure=True,
-        samesite='Lax'
-    )
-    return resp
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT id, password_hash, role, approved, customer_name, customer_email, customer_phone FROM users WHERE username=%s", (username,))
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not user or not check_password_hash(user[1], password) or not user[3]:
+            audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
+            return jsonify({'error': 'Invalid credentials or unapproved user'}), 401
+        access_token = create_access_token(identity=json.dumps({'id': user[0], 'role': user[2], 'username': username}))
+        audit_logger.info(f"LOGIN SUCCESS: user={username} ip={request.remote_addr}")
+        resp = make_response(jsonify({
+            "access_token": access_token,
+            "customer_name": user[4],
+            "customer_email": decrypt_sensitive_data(user[5]),
+            "customer_phone": decrypt_sensitive_data(user[6]),
+            'role': user[2],
+            'username': username
+        }), 200)
+        resp.set_cookie('access_token_cookie', access_token, httponly=True, secure=True, samesite='Lax')
+        return resp
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/approve_user/<int:user_id>', methods=['POST'])
 @jwt_required()
@@ -344,25 +323,22 @@ def approve_user(user_id):
     user = json.loads(get_jwt_identity())
     if user['role'] not in ['staff', 'admin']:
         return jsonify({'error': 'Unauthorized'}), 403
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("UPDATE users SET approved=TRUE WHERE id=%s", (user_id,))
-    # Fetch user email and name
-    cur.execute("SELECT customer_email, customer_name FROM users WHERE id=%s", (user_id,))
-    row = cur.fetchone()
-    conn.commit()
-    cur.close()
-    conn.close()
-    if row:
-        customer_email, customer_name = row
-        # Decrypt email for sending
-        decrypted_email = decrypt_sensitive_data(customer_email) if customer_email else ''
-        if decrypted_email:
-            # Send confirmation email
-            subject = "Your registration has been approved"
-            body = f"Dear {customer_name},\n\nYour registration has been approved. You can now log in and use our services.\n\nThank you!"
-            send_simple_email(decrypted_email, subject, body)
-    return jsonify({'message': 'User approved'})
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET approved=TRUE WHERE id=%s", (user_id,))
+        cur.execute("SELECT customer_email, customer_name FROM users WHERE id=%s", (user_id,))
+        row = cur.fetchone()
+        conn.commit()
+        cur.close()
+        conn.close()
+        if row:
+            decrypted_email = decrypt_sensitive_data(row[0])
+            if decrypted_email:
+                send_simple_email(decrypted_email, "Registration Approved", f"Dear {row[1]}, your account is approved.")
+        return jsonify({'message': 'User approved'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/unapproved_users', methods=['GET'])
 @jwt_required()
@@ -370,26 +346,17 @@ def get_unapproved_users():
     user = json.loads(get_jwt_identity())
     if user['role'] not in ['staff', 'admin']:
         return jsonify({'error': 'Unauthorized'}), 403
-    
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute('SELECT id, username, customer_name, customer_email, customer_phone, role FROM users WHERE approved = FALSE')
-    users = []
-    for row in cur.fetchall():
-        # Decrypt email and phone
-        decrypted_email = decrypt_sensitive_data(row[3]) if row[3] is not None else ''
-        decrypted_phone = decrypt_sensitive_data(row[4]) if row[4] is not None else ''
-        users.append({
-            'id': row[0],
-            'username': row[1],
-            'customer_name': row[2],
-            'customer_email': decrypted_email,
-            'customer_phone': decrypted_phone,
-            'role': row[5]
-        })
-    cur.close()
-    conn.close()
-    return jsonify(users)
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT id, username, customer_name, customer_email, customer_phone, role FROM users WHERE approved = FALSE")
+        users = [{'id': row[0], 'username': row[1], 'customer_name': row[2], 'customer_email': decrypt_sensitive_data(row[3]),
+                  'customer_phone': decrypt_sensitive_data(row[4]), 'role': row[5]} for row in cur.fetchall()]
+        cur.close()
+        conn.close()
+        return jsonify(users)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/stats/files_by_date')
 @jwt_required()
