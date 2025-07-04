@@ -16,41 +16,36 @@ export default function BillSearch({ t = x => x }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-  const [role, setRole] = useState('');
-  const [username, setUsername] = useState('');
+  const role = localStorage.getItem('role');
+  const username = localStorage.getItem('username');
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch user info from backend if needed
-    const fetchUser = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setRole(data.role);
-          setUsername(data.username);
-        }
-      } catch {}
-    };
-    fetchUser();
+    if (role === 'customer') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        handleSearch();
+      } else {
+        setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
+        navigate('/login');
+      }
+    }
+    // eslint-disable-next-line
   }, []);
 
   const handleChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const validateInput = () => {
-    // Example: require at least one field
-    if (!form.unique_number && !form.bl_number && !form.customer_name) {
-      setSnackbar({ open: true, message: 'Please enter at least one search field.', severity: 'error' });
-      return false;
-    }
-    return true;
-  };
-
   const handleSearch = async () => {
-    if (!validateInput()) return;
     setLoading(true);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
+      setLoading(false);
+      navigate('/login');
+      return;
+    }
     let searchForm = { ...form };
     if (role === 'customer') {
       searchForm.username = username;
@@ -58,8 +53,10 @@ export default function BillSearch({ t = x => x }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/search_bills`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify(searchForm)
       });
       if (res.status === 401) {

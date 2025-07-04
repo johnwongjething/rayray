@@ -8,32 +8,24 @@ function Login({ t = x => x }) {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Simple input validation
-  const validateInput = () => {
-    if (!formData.username || !formData.password) {
-      setError('Username and password are required.');
-      return false;
-    }
-    // Add more validation as needed (e.g., regex for username)
-    return true;
-  };
-
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateInput()) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Important: allow cookies to be set
         body: JSON.stringify(formData)
       });
       const data = await res.json();
       if (res.ok) {
-        // No longer store any sensitive data in localStorage
-        // Optionally, fetch user info from /api/me if needed
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('role', data.role);
+        localStorage.setItem('username', data.username);
+        if (data.customer_name) localStorage.setItem('customer_name', data.customer_name);
+        if (data.customer_email) localStorage.setItem('customer_email', data.customer_email);
+        if (data.customer_phone) localStorage.setItem('customer_phone', data.customer_phone);
         navigate('/dashboard');
       } else {
         setError(data.error || t('loginFailed') || 'Login failed');
@@ -49,7 +41,7 @@ function Login({ t = x => x }) {
         <Typography variant="h4" align="center" gutterBottom>
           {t('login')}
         </Typography>
-        <form onSubmit={handleSubmit} autoComplete="off">
+        <form onSubmit={handleSubmit}>
           <TextField
             fullWidth
             label={t('username')}

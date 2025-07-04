@@ -22,30 +22,17 @@ function AccountingReview({ t = x => x }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [total, setTotal] = useState(0);
-  const [role, setRole] = useState('');
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Fetch user info from backend if needed
-    const fetchUser = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setRole(data.role);
-        }
-      } catch {}
-    };
-    fetchUser();
-    fetchBills();
-  }, []);
+  const role = localStorage.getItem('role');
 
   // Fetch all bills once
   const fetchBills = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Authentication token not found');
       const response = await fetch(`${API_BASE_URL}/api/bills/awaiting_bank_in`, {
-        credentials: 'include'
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -57,6 +44,8 @@ function AccountingReview({ t = x => x }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => { fetchBills(); }, []);
 
   // Filter bills as user types or changes page/pageSize
   useEffect(() => {
@@ -95,9 +84,10 @@ function AccountingReview({ t = x => x }) {
     setConfirmModal({ visible: false, record: null });
     setSaving(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE_URL}/api/bill/${record.id}/complete`, {
         method: 'POST',
-        credentials: 'include'
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to mark as completed');
       setSnackbar({ open: true, message: t('markedCompleted'), severity: 'success' });
@@ -127,7 +117,6 @@ Thank you.`);
       const res = await fetch(`${API_BASE_URL}/api/send_unique_number_email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           to_email: uniqueEmailTo,
           subject: uniqueEmailSubject,
@@ -153,9 +142,10 @@ Thank you.`);
   const handleSettleReserve = async (record) => {
     setSaving(true);
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE_URL}/api/bill/${record.id}/settle_reserve`, {
         method: 'POST',
-        credentials: 'include'
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to settle reserve');
       setSnackbar({ open: true, message: 'Reserve marked as settled', severity: 'success' });

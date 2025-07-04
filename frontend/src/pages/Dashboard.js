@@ -3,24 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Box, Typography, Stack } from '@mui/material';
 
 function Dashboard({ t = x => x }) {
-  const [role, setRole] = React.useState('');
-  const [username, setUsername] = React.useState('');
+  const role = localStorage.getItem('role');
   const navigate = useNavigate();
-
-  React.useEffect(() => {
-    // Fetch user info from backend if needed
-    const fetchUser = async () => {
-      try {
-        const res = await fetch('/api/me', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setRole(data.role);
-          setUsername(data.username);
-        }
-      } catch {}
-    };
-    fetchUser();
-  }, []);
 
   return (
     <Box sx={{ my: 4, textAlign: 'center' }}>
@@ -28,7 +12,7 @@ function Dashboard({ t = x => x }) {
         {t('dashboard')}
       </Typography>
       <Typography variant="h6" gutterBottom>
-        {t('welcome')}, {username} ({t(role)})
+        {t('welcome')}, {localStorage.getItem('username')} ({t(role)})
       </Typography>
       
       {/* First Row - Primary Navigation */}
@@ -73,9 +57,8 @@ function Dashboard({ t = x => x }) {
         <Button
           variant="outlined"
           color="secondary"
-          onClick={async () => {
-            // Call backend logout endpoint to clear cookie
-            await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+          onClick={() => {
+            localStorage.clear();
             navigate('/login');
           }}
         >

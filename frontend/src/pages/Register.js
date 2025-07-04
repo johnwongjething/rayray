@@ -35,29 +35,14 @@ function Register({ t = x => x }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Input validation
-    if (!formData.username || !formData.password || !formData.customer_email) {
-      setSnackbar({ open: true, message: t('allFieldsRequired') || 'All required fields must be filled.', severity: 'error' });
-      return;
-    }
     if (formData.confirm_email && formData.customer_email !== formData.confirm_email) {
       setSnackbar({ open: true, message: t('emailMismatch') || 'Email addresses do not match', severity: 'error' });
-      return;
-    }
-    // Password strength check
-    if (formData.password.length < 8 ||
-        !/[A-Z]/.test(formData.password) ||
-        !/[a-z]/.test(formData.password) ||
-        !/[0-9]/.test(formData.password) ||
-        !/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) {
-      setSnackbar({ open: true, message: t('passwordRequirement') || 'Password must be at least 8 characters, include an uppercase letter, a lowercase letter, a number, and a special character.', severity: 'error' });
       return;
     }
     try {
       const res = await fetch(`${API_BASE_URL}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(formData)
       });
       const data = await res.json();
@@ -66,7 +51,6 @@ function Register({ t = x => x }) {
         await fetch(`${API_BASE_URL}/api/notify_new_user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({
             username: formData.username,
             email: formData.customer_email,
