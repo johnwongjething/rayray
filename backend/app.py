@@ -32,6 +32,8 @@ load_dotenv()
 app = Flask(__name__)
 csrf = CSRFProtect(app)
 
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16))  # Default to a random key if not set
+
 # Add ProxyFix middleware to handle X-Forwarded-For headers
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
