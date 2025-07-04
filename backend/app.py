@@ -228,6 +228,7 @@ def health_check():
 
 @app.route('/api/register', methods=['POST'])
 @limiter.limit("50 per hour" if is_development else "20 per hour")  # More lenient in development
+@csrf.exempt
 def register():
     data = request.get_json()
     username = data.get('username')
