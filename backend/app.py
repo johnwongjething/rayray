@@ -274,14 +274,17 @@ def login():
     cur.close()
     conn.close()
     if not user:
+        audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
         return jsonify({'error': 'User not found'}), 401
     user_id, password_hash, role, approved, customer_name, customer_email, customer_phone = user
     if not approved:
         return jsonify({'error': 'User not approved yet'}), 403
     if not check_password_hash(password_hash, password):
+        audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
         return jsonify({'error': 'Incorrect password'}), 401
     access_token = create_access_token(identity=json.dumps({'id': user_id, 'role': role, 'username': username}))
     log_sensitive_operation(user_id, 'login', 'User logged in successfully')
+    audit_logger.info(f"LOGIN SUCCESS: user={username} ip={request.remote_addr}")
 
     # Set JWT as a cookie
     resp = make_response(jsonify({
@@ -1590,47 +1593,6 @@ audit_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(messag
 audit_logger.addHandler(audit_handler)
 
 # Example: Audit logging for login
-@app.route('/api/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id, password_hash, role, approved, customer_name, customer_email, customer_phone FROM users WHERE username=%s", (username,))
-    user = cur.fetchone()
-    cur.close()
-    conn.close()
-    if not user:
-        audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
-        return jsonify({'error': 'User not found'}), 401
-    user_id, password_hash, role, approved, customer_name, customer_email, customer_phone = user
-    if not approved:
-        return jsonify({'error': 'User not approved yet'}), 403
-    if not check_password_hash(password_hash, password):
-        audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
-        return jsonify({'error': 'Incorrect password'}), 401
-    access_token = create_access_token(identity=json.dumps({'id': user_id, 'role': role, 'username': username}))
-    log_sensitive_operation(user_id, 'login', 'User logged in successfully')
-    audit_logger.info(f"LOGIN SUCCESS: user={username} ip={request.remote_addr}")
-
-    # Set JWT as a cookie
-    resp = make_response(jsonify({
-        "access_token": access_token,
-        "customer_name": customer_name,
-        "customer_email": customer_email,
-        "customer_phone": customer_phone,
-        'role': role,
-        'username': username
-    }), 200)
-    resp.set_cookie(
-        'access_token_cookie',
-        access_token,
-        httponly=True,
-        secure=True,
-        samesite='Lax'
-    )
-    return resp
 
 # You can add similar audit_logger.info(...) calls for other sensitive operations
 # such as password changes, data exports, or admin actions.
