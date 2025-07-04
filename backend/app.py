@@ -264,6 +264,36 @@ def register():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/notify_new_user', methods=['POST'])
+@csrf.exempt  # Exempt CSRF protection for API (important for JS calls)
+def notify_new_user_route():
+    data = request.get_json()
+    customer_username = data.get('username')
+    email = data.get('email')
+    role = data.get('role')
+
+    # Replace with your actual admin email
+    admin_email = 'ray6330099@gmail.com'
+    subject = f"📬 New User Registration: {customer_username}"
+    body = f"""Hi Admin,
+
+A new user has just registered on the system.
+
+Username: {customer_username}
+Email: {email}
+Role: {role}
+
+You can log in to review and approve the user if necessary.
+
+Best regards,
+Your System
+"""
+    try:
+        send_simple_email(admin_email, subject, body)
+        return jsonify({'message': 'Notification email sent'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/login', methods=['POST'])
 @limiter.limit("5 per minute")
 @csrf.exempt
