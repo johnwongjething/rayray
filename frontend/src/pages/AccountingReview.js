@@ -270,4 +270,5 @@ Thank you.`);
       </Modal>
     </div>
   );
-}
+};
+export default AccountingReview;
