@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Box, Button, List, ListItem, ListItemText, Snackbar, Alert } from '@mui/material';
+import { Container, Typography, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Snackbar, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 
-const UserApproval = () => {
-  const [unapprovedUsers, setUnapprovedUsers] = useState([]);
+function UserApproval({ t = x => x }) {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const navigate = useNavigate();
 
   // Fetch unapproved users
-  const fetchUnapprovedUsers = async () => {
+  const fetchUsers = async () => {
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/unapproved_users`, {
         method: 'GET',
@@ -20,21 +23,22 @@ const UserApproval = () => {
         setSnackbar({ open: true, message: 'Session expired. Please log in again.', severity: 'error' });
         localStorage.clear();
         navigate('/login');
+        setLoading(false);
         return;
       }
-      if (res.ok) {
-        const data = await res.json();
-        setUnapprovedUsers(data);
-      } else {
-        setSnackbar({ open: true, message: 'Failed to fetch users', severity: 'error' });
-      }
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Failed to fetch users', severity: 'error' });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const data = await res.json();
+      setUsers(data.users || data || []);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch users');
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUnapprovedUsers();
+    fetchUsers();
   }, []);
 
   const handleApprove = async (id) => {
@@ -60,7 +64,7 @@ const UserApproval = () => {
 
       if (res.ok) {
         setSnackbar({ open: true, message: 'User approved successfully', severity: 'success' });
-        fetchUnapprovedUsers();
+        fetchUsers();
       } else {
         setSnackbar({ open: true, message: 'Failed to approve user', severity: 'error' });
       }
@@ -77,26 +81,42 @@ const UserApproval = () => {
           Back to Dashboard
         </Button>
         <Typography variant="h4" gutterBottom>User Approval</Typography>
-        <List>
-          {unapprovedUsers.map((user) => (
-            <ListItem key={user.id}>
-              <ListItemText
-                primary={user.username}
-                secondary={
-                  <>
-                    <div>Email: {user.customer_email}</div>
-                    <div>Company Name: {user.customer_name}</div>
-                    <div>Phone: {user.customer_phone}</div>
-                    <div>Role: {user.role}</div>
-                  </>
-                }
-              />
-              <Button variant="contained" color="primary" onClick={() => handleApprove(user.id)}>
-                Approve
-              </Button>
-            </ListItem>
-          ))}
-        </List>
+        {loading ? (
+          <CircularProgress />
+        ) : error ? (
+          <Typography color="error">{error}</Typography>
+        ) : (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Username</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Company Name</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>{user.username}</TableCell>
+                    <TableCell>{user.customer_email}</TableCell>
+                    <TableCell>{user.customer_name}</TableCell>
+                    <TableCell>{user.customer_phone}</TableCell>
+                    <TableCell>{user.role}</TableCell>
+                    <TableCell>
+                      <Button variant="contained" color="primary" onClick={() => handleApprove(user.id)}>
+                        Approve
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
         <Snackbar
           open={snackbar.open}
           autoHideDuration={4000}

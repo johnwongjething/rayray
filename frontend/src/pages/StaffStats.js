@@ -24,14 +24,8 @@ function StaffStats({ t = x => x }) {
       setLoading(true);
       setError(null);
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setError('Authentication required. Please log in again.');
-          navigate('/login');
-          return;
-        }
         const res = await fetch(`${API_BASE_URL}/api/stats/summary`, {
-          headers: { Authorization: `Bearer ${token}` }
+          credentials: 'include'
         });
         if (res.status === 401) {
           setError('Session expired. Please log in again.');
@@ -58,13 +52,8 @@ function StaffStats({ t = x => x }) {
     const fetchOutstanding = async () => {
       setLoadingOutstanding(true);
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          navigate('/login');
-          return;
-        }
         const res = await fetch(`${API_BASE_URL}/api/stats/outstanding_bills`, {
-          headers: { Authorization: `Bearer ${token}` }
+          credentials: 'include'
         });
         if (res.status === 401) {
           localStorage.clear();
@@ -87,7 +76,9 @@ function StaffStats({ t = x => x }) {
     try {
       let url = `${API_BASE_URL}/api/staff_stats`;
       if (searchDateString) url += `?completed_at=${searchDateString}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setBills(data.bills || []);
