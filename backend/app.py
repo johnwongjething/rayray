@@ -24,6 +24,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from dateutil import parser
 from flask_wtf import CSRFProtect
 import logging
+from extract_fields import extract_fields
 
 load_dotenv()
 
@@ -323,6 +324,7 @@ def bills_by_date():
 
 @app.route('/api/upload', methods=['POST'])
 @jwt_required()
+@csrf.exempt
 def upload():
     user = json.loads(get_jwt_identity())
     try:
@@ -576,6 +578,7 @@ def complete_bill(bill_id):
 
 @app.route('/api/search_bills', methods=['POST'])
 @jwt_required()
+@csrf.exempt
 def search_bills():
     data = request.get_json()
     params = {'customer_name': data.get('customer_name', ''),
@@ -893,21 +896,21 @@ def account_bills():
             bill['display_ctn_fee'] = ctn_fee
             bill['display_service_fee'] = service_fee
             if bill['payment_method'] == 'Allinpay':
-                allinpay_85_dt = parser.isoparse(bill.get('allinpay_85_received_at')) if bill.get('allinpay_85_received_at') else None
+                allinpay_85_dt = parser.parse(bill.get('allinpay_85_received_at')) if bill.get('allinpay_85_received_at') else None
                 if allinpay_85_dt and completed_at and start_date <= allinpay_85_dt < end_date:
                     bill['display_ctn_fee'] = round(ctn_fee * 0.85, 2)
                     bill['display_service_fee'] = round(service_fee * 0.85, 2)
                     totals['allinpay_85_ctn'] += bill['display_ctn_fee']
                     totals['allinpay_85_service'] += bill['display_service_fee']
                 elif bill['reserve_status'].lower() in ['settled', 'reserve settled'] and completed_at:
-                    completed_dt = parser.isoparse(bill.get('completed_at')) if bill.get('completed_at') else None
+                    completed_dt = parser.parse(bill.get('completed_at')) if bill.get('completed_at') else None
                     if completed_dt and start_date <= completed_dt < end_date:
                         bill['display_ctn_fee'] = round(ctn_fee * 0.15, 2)
                         bill['display_service_fee'] = round(service_fee * 0.15, 2)
                         totals['reserve_ctn'] += bill['display_ctn_fee']
                         totals['reserve_service'] += bill['display_service_fee']
             elif completed_at:
-                completed_dt = parser.isoparse(bill.get('completed_at')) if bill.get('completed_at') else None
+                completed_dt = parser.parse(bill.get('completed_at')) if bill.get('completed_at') else None
                 if completed_dt and start_date <= completed_dt < end_date:
                     totals['bank_ctn'] += ctn_fee
                     totals['bank_service'] += service_fee
@@ -949,7 +952,7 @@ def get_bills_by_status(status):
         cur = conn.cursor()
         cur.execute("""
             SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, port_of_discharge, bl_number,
-            container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
+            container_numbers, flight_or_vessel, product_description, service_fee, ctn_fee, payment_link, receipt_filename, status, invoice_filename, unique_number, created_at, receipt_uploaded_at,
             customer_username, customer_invoice, completed_at, customer_packing_list
             FROM bill_of_lading WHERE status = %s ORDER BY id DESC
         """, (status,))
@@ -973,7 +976,14 @@ def get_awaiting_bank_in_bills():
         bl_number = request.args.get('bl_number', '').strip()
         conn = get_db_conn()
         cur = conn.cursor()
-        query = "SELECT * FROM bill_of_lading WHERE (status = 'Awaiting Bank In') OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%')"
+        query = """
+            SELECT id, customer_name, customer_email, customer_phone, pdf_filename, shipper, consignee, port_of_loading, 
+                   port_of_discharge, bl_number, container_numbers, service_fee, ctn_fee, payment_link, receipt_filename, 
+                   status, invoice_filename, unique_number, created_at, receipt_uploaded_at, customer_username, 
+                   customer_invoice, completed_at, customer_packing_list, payment_method, payment_status, reserve_status
+            FROM bill_of_lading
+            WHERE (status = 'Awaiting Bank In') OR (payment_method = 'Allinpay' AND payment_status = 'Paid 85%')
+        """
         params = []
         if bl_number:
             query += " AND bl_number ILIKE %s"
@@ -1015,6 +1025,7 @@ def request_username():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/notify_new_user', methods=['POST'])
+@csrf.exempt
 def notify_new_user():
     data = request.get_json()
     if not all(k in data for k in ['username', 'email', 'role']):
@@ -1036,6 +1047,11 @@ def not_found(e):
 def internal_error(e):
     logger.error(f'500 error: {request.url} - {str(e)}')
     return '<h1>500 - Internal Server Error</h1><p>Sorry, something went wrong. Please try again later.</p>', 500
+
+@app.route('/api/ping', methods=['GET'])
+@limiter.exempt
+def ping():
+    return jsonify({'message': 'pong', 'timestamp': datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
