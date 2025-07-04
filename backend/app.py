@@ -910,7 +910,7 @@ def account_bills():
                 completed_dt = parser.isoparse(bill.get('completed_at')) if bill.get('completed_at') else None
                 if completed_dt and start_date <= completed_dt < end_date:
                     totals['bank_ctn'] += ctn_fee
-                    totals['bank_service'] += service_fee]
+                    totals['bank_service'] += service_fee
             bills.append(bill)
         summary = {
             'totalEntries': len(bills),
