@@ -265,6 +265,7 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 @limiter.limit("5 per minute")
+@csrf.exempt
 def login():
     data = request.get_json()
     username = data.get('username')
