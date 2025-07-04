@@ -61,6 +61,8 @@ env_origins = os.getenv('ALLOWED_ORIGINS', '').split(',')
 if env_origins and env_origins[0]:
     allowed_origins.extend([origin.strip() for origin in env_origins])
 
+is_development = os.getenv('FLASK_ENV', 'development') == 'development'
+
 CORS(app, origins=allowed_origins, supports_credentials=True)
 from payment_webhook import payment_webhook
 from payment_link import payment_link
