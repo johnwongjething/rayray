@@ -26,8 +26,10 @@ from flask_wtf import CSRFProtect
 import logging
 from extract_fields import extract_fields
 from werkzeug.utils import secure_filename
+import psutil
 
 load_dotenv()
+
 
 app = Flask(__name__)
 csrf = CSRFProtect(app)
@@ -1057,6 +1059,19 @@ def notify_new_user():
     except Exception as e:
         logger.error(f"Notify new user failed: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/debug/memory', methods=['GET'])
+@limiter.exempt
+def debug_memory():
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    return jsonify({
+        'rss_MB': round(mem_info.rss / 1024 / 1024, 2),
+        'vms_MB': round(mem_info.vms / 1024 / 1024, 2),
+        'num_threads': process.num_threads(),
+        'open_files': len(process.open_files()),
+        'connections': len(process.connections())
+    })
 
 @app.errorhandler(404)
 def not_found(e):
