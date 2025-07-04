@@ -14,44 +14,65 @@ function EditBill({ t = x => x }) {
 
   useEffect(() => {
     // Only allow staff/admin
-    const role = localStorage.getItem('role');
-    console.log('role:', role);
-    if (role !== 'staff' && role !== 'admin') {
-      setSnackbar({ open: true, message: 'Unauthorized', severity: 'error' });
-      navigate('/login');
-      return;
-    }
-    // Fetch bill data
-    const fetchBill = async () => {
+    // Fetch user info from backend if needed
+    const fetchUser = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/bills/${id}`);
+        const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          setFormValues(data);
-        } else {
-          setSnackbar({ open: true, message: 'Bill not found', severity: 'error' });
-          navigate('/edit-delete-bills');
+          if (data.role !== 'staff' && data.role !== 'admin') {
+            setSnackbar({ open: true, message: 'Unauthorized', severity: 'error' });
+            navigate('/login');
+            return;
+          }
         }
-      } catch (error) {
-        console.error('Error fetching bill:', error);
-        setSnackbar({ open: true, message: error.message, severity: 'error' });
-        navigate('/edit-delete-bills');
-      } finally {
-        setLoading(false);
+      } catch {
+        setSnackbar({ open: true, message: 'Unauthorized', severity: 'error' });
+        navigate('/login');
+        return;
       }
+      // Fetch bill data
+      const fetchBill = async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/bills/${id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setFormValues(data);
+          } else {
+            setSnackbar({ open: true, message: 'Bill not found', severity: 'error' });
+            navigate('/edit-delete-bills');
+          }
+        } catch (error) {
+          console.error('Error fetching bill:', error);
+          setSnackbar({ open: true, message: error.message, severity: 'error' });
+          navigate('/edit-delete-bills');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchBill();
     };
-    fetchBill();
+    fetchUser();
   }, [id, navigate]);
 
   const handleChange = (e) => {
     setFormValues({ ...formValues, [e.target.name]: e.target.value });
   };
 
+  const validateInput = () => {
+    // Example: require customer_name and bl_number
+    if (!formValues.customer_name || !formValues.bl_number) {
+      setSnackbar({ open: true, message: 'Customer name and BL number are required.', severity: 'error' });
+      return false;
+    }
+    return true;
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (!validateInput()) return;
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
       // Update all fields in one request
       const updateData = {
         customer_name: formValues.customer_name,
@@ -72,7 +93,8 @@ function EditBill({ t = x => x }) {
       };
       const res = await fetch(`${API_BASE_URL}/api/bills/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(updateData)
       });
       if (!res.ok) {

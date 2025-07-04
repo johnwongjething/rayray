@@ -24,6 +24,11 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://terryraylogicticsco.xyz https://www.terryraylogicticsco.xyz; script-src 'self'; object-src 'none'; frame-ancestors 'none';" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=()" />
     <title>React App</title>
   </head>
   <body>

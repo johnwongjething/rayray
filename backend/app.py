@@ -25,6 +25,7 @@ from dateutil import parser
 from flask_wtf import CSRFProtect
 import logging
 from extract_fields import extract_fields
+from werkzeug.utils import secure_filename
 
 load_dotenv()
 
@@ -32,6 +33,22 @@ app = Flask(__name__)
 csrf = CSRFProtect(app)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16))
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
+
+# --- Security Enhancements ---
+# Secure session cookies
+app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookies over HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JS access to cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF in most cases
+
+# Set HTTP security headers
+@app.after_request
+def set_security_headers(response):
+    response.headers['Content-Security-Policy'] = "default-src 'self' https://terryraylogicticsco.xyz https://www.terryraylogicticsco.xyz; script-src 'self'; object-src 'none'; frame-ancestors 'none';"
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=()'
+    return response
 
 # CORS configuration
 allowed_origins = ['http://localhost:3000', 'https://terryraylogicticsco.xyz', 'https://www.terryraylogicticsco.xyz']
@@ -86,6 +103,9 @@ def validate_password(password):
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def sanitize_filename(filename):
+    return secure_filename(filename)
 
 def encrypt_sensitive_data(data):
     return fernet.encrypt(data.encode()).decode() if data and isinstance(data, str) else data
@@ -339,7 +359,7 @@ def upload():
         def save_file(file, label):
             if file and allowed_file(file.filename):
                 now_str = datetime.now(pytz.timezone('Asia/Hong_Kong')).strftime('%Y-%m-%d_%H%M%S')
-                filename = f"{now_str}_{label}_{file.filename}"
+                filename = f"{now_str}_{label}_{sanitize_filename(file.filename)}"
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
                 return filename
             return None
@@ -434,7 +454,7 @@ def upload_receipt(bill_id):
     receipt = request.files['receipt']
     if not allowed_file(receipt.filename):
         return jsonify({'error': 'Invalid file type'}), 400
-    filename = f"receipt_{bill_id}_{receipt.filename}"
+    filename = f"receipt_{bill_id}_{sanitize_filename(receipt.filename)}"
     receipt.save(os.path.join(UPLOAD_FOLDER, filename))
     hk_now = datetime.now(pytz.timezone('Asia/Hong_Kong')).isoformat()
     try:

@@ -88,9 +88,14 @@ const columns = [
     try {
       let url = `${API_BASE_URL}/api/account_bills`;
       if (searchDateString) {
+        // Basic input validation for date string
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(searchDateString)) {
+          setLoading(false);
+          return;
+        }
         url += `?completed_at=${searchDateString}`;
       }
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setBills(data.bills || []);
@@ -279,7 +284,7 @@ export default AccountPage;
 //       if (searchDateString) {
 //         url += `?completed_at=${searchDateString}`;
 //       }
-//       const response = await fetch(url);
+//       const response = await fetch(url, { credentials: 'include' });
 //       if (response.ok) {
 //         const data = await response.json();
 //         setBills(data.bills || []);

@@ -15,32 +15,35 @@ function EditDeleteBills({ t = x => x }) {
 
   useEffect(() => {
     // Only allow staff/admin
-    const role = localStorage.getItem('role');
-    if (role !== 'staff' && role !== 'admin') {
-      setSnackbar({ open: true, message: 'Unauthorized', severity: 'error' });
-      navigate('/login');
-      return;
-    }
-    // Fetch all bills on component mount
-    fetchBills();
-  }, [navigate]);
-
-  const fetchBills = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.role !== 'staff' && data.role !== 'admin') {
+            setSnackbar({ open: true, message: 'Unauthorized', severity: 'error' });
+            navigate('/login');
+            return;
+          }
+        }
+      } catch {
+        setSnackbar({ open: true, message: 'Unauthorized', severity: 'error' });
         navigate('/login');
         return;
       }
+      fetchBills();
+    };
+    fetchUser();
+  }, [navigate]);
 
+  const fetchBills = async () => {
+    if (!validateInput()) return;
+    setLoading(true);
+    try {
       const res = await fetch(`${API_BASE_URL}/api/search_bills`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(search)
       });
 
@@ -70,16 +73,9 @@ function EditDeleteBills({ t = x => x }) {
 
   const handleDeleteConfirmed = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
-        navigate('/login');
-        return;
-      }
-
       const res = await fetch(`${API_BASE_URL}/api/bill/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: 'include'
       });
 
       if (res.status === 401) {
@@ -106,6 +102,15 @@ function EditDeleteBills({ t = x => x }) {
     if (window.confirm('Are you sure you want to delete this bill?')) {
       handleDeleteConfirmed(id);
     }
+  };
+
+  const validateInput = () => {
+    // Example: require at least one field
+    if (!search.customer_name && !search.customer_id && !search.created_at && !search.bl_number) {
+      setSnackbar({ open: true, message: 'Please enter at least one search field.', severity: 'error' });
+      return false;
+    }
+    return true;
   };
 
   const columns = [
@@ -164,4 +169,4 @@ function EditDeleteBills({ t = x => x }) {
   );
 }
 
-export default EditDeleteBills; 
+export default EditDeleteBills;
