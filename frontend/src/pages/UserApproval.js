@@ -3,49 +3,39 @@ import { Container, Typography, Box, Button, List, ListItem, ListItemText, Snack
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 
-function UserApproval({ t = x => x }) {
+const UserApproval = () => {
   const [unapprovedUsers, setUnapprovedUsers] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const navigate = useNavigate();
 
+  // Fetch unapproved users
   const fetchUnapprovedUsers = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
-        navigate('/login');
-        return;
-      }
-
-      console.log('Fetching unapproved users from:', `${API_BASE_URL}/api/unapproved_users`);
       const res = await fetch(`${API_BASE_URL}/api/unapproved_users`, {
-        headers: { Authorization: `Bearer ${token}` }
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
-      console.log('Response status:', res.status);
-
       if (res.status === 401) {
         setSnackbar({ open: true, message: 'Session expired. Please log in again.', severity: 'error' });
         localStorage.clear();
         navigate('/login');
         return;
       }
-
       if (res.ok) {
         const data = await res.json();
-        console.log('Response data:', data);
         setUnapprovedUsers(data);
       } else {
         setSnackbar({ open: true, message: 'Failed to fetch users', severity: 'error' });
       }
     } catch (error) {
-      console.error('Error fetching unapproved users:', error);
       setSnackbar({ open: true, message: 'Failed to fetch users', severity: 'error' });
     }
   };
 
   useEffect(() => {
     fetchUnapprovedUsers();
-  }, [navigate]);
+  }, []);
 
   const handleApprove = async (id) => {
     try {
@@ -84,9 +74,9 @@ function UserApproval({ t = x => x }) {
     <Container>
       <Box sx={{ my: 4 }}>
         <Button onClick={() => navigate('/dashboard')} variant="contained" color="primary" style={{ color: '#fff', marginBottom: 16 }}>
-          {t('backToDashboard')}
+          Back to Dashboard
         </Button>
-        <Typography variant="h4" gutterBottom>{t('userApproval')}</Typography>
+        <Typography variant="h4" gutterBottom>User Approval</Typography>
         <List>
           {unapprovedUsers.map((user) => (
             <ListItem key={user.id}>
@@ -94,15 +84,15 @@ function UserApproval({ t = x => x }) {
                 primary={user.username}
                 secondary={
                   <>
-                    <div>{t('email')}: {user.customer_email}</div>
-                    <div>{t('companyName')}: {user.customer_name}</div>
-                    <div>{t('phone')}: {user.customer_phone}</div>
-                    <div>{t('role')}: {t(user.role)}</div>
+                    <div>Email: {user.customer_email}</div>
+                    <div>Company Name: {user.customer_name}</div>
+                    <div>Phone: {user.customer_phone}</div>
+                    <div>Role: {user.role}</div>
                   </>
                 }
               />
               <Button variant="contained" color="primary" onClick={() => handleApprove(user.id)}>
-                {t('approve')}
+                Approve
               </Button>
             </ListItem>
           ))}
@@ -122,4 +112,4 @@ function UserApproval({ t = x => x }) {
   );
 }
 
-export default UserApproval; 
+export default UserApproval;
