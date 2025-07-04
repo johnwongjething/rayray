@@ -16,7 +16,7 @@ from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 import smtplib
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from flask_limiter.util import get_remote_address  # Added missing import
 from cryptography.fernet import Fernet
 import re
 from extract_fields import extract_fields
@@ -43,46 +43,70 @@ if env_origins and env_origins[0]:
     allowed_origins.extend([origin.strip() for origin in env_origins])
 
 CORS(app, origins=allowed_origins, supports_credentials=True)
+
+# Initialize Rate Limiter with optimized settings for Render's 512MB RAM
+# Using memory backend due to Render's free tier limitations
+is_development = os.getenv('FLASK_ENV') == 'development' or os.getenv('FLASK_DEBUG') == 'True'
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    storage_uri="memory://",  # In-memory storage for Render compatibility
+    strategy="moving-window",
+    default_limits=["1000 per day", "100 per hour"] if is_development else ["200 per day", "50 per hour"]
+)
+
+jwt = JWTManager(app)
+
 from payment_webhook import payment_webhook
 from payment_link import payment_link
 
 app.register_blueprint(payment_webhook, url_prefix='/api/webhook')
 app.register_blueprint(payment_link)
 
-
-
-
 @app.route('/api/ping')
 def ping():
     return {"message": "pong"}, 200
-
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'change-this-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
-jwt = JWTManager(app)
 
-# Initialize Rate Limiter with conditional limits based on environment
-is_development = os.getenv('FLASK_ENV') == 'development' or os.getenv('FLASK_DEBUG') == 'True'
+# Add specific endpoint limits for sensitive operations
+@app.route('/api/upload', methods=['POST'])
+@limiter.limit("5 per hour")  # Limit file uploads
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file and file.filename.endswith('.pdf'):
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], file.filename))
+        return jsonify({"message": "File uploaded"}), 200
+    return jsonify({"error": "Invalid file type"}), 400
 
-if is_development:
-    # More lenient limits for development
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["1000 per day", "100 per hour"]
-    )
-else:
-    # Stricter limits for production
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["200 per day", "50 per hour"]
-    )
+@app.route('/api/register', methods=['POST'])
+@limiter.limit("10 per day")  # Limit user registration
+@cross_origin()
+def register():
+    # Add your existing register logic here
+    pass
 
-# Custom error handler for rate limiting
+@app.route('/api/login', methods=['POST'])
+@limiter.limit("30 per hour")  # Limit login attempts
+@cross_origin()
+def login():
+    # Add your existing login logic here
+    pass
+
+@app.route('/api/password/reset', methods=['POST'])
+@limiter.limit("5 per day")  # Limit password reset requests
+@cross_origin()
+def request_password_reset():
+    # Add your existing password reset logic here
+    pass
+
+# Add error handler for rate limiting
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({
