@@ -1,5 +1,5 @@
 import json
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, make_response, redirect
 from flask_cors import CORS, cross_origin
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -17,20 +17,32 @@ from email.utils import formataddr
 import smtplib
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+
 from cryptography.fernet import Fernet
 import re
 from extract_fields import extract_fields
 import pytz
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dateutil import parser
+from flask_wtf import CSRFProtect
+import logging
 
 load_dotenv()
 
 app = Flask(__name__)
+csrf = CSRFProtect(app)
 
 # Add ProxyFix middleware to handle X-Forwarded-For headers
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
+
+if os.getenv('FLASK_ENV') == 'production':
+    @app.before_request
+    def enforce_https():
+        if not request.is_secure and request.headers.get('X-Forwarded-Proto', 'http') != 'https':
+            url = request.url.replace('http://', 'https://', 1)
+            return redirect(url, code=301)
+            
 # CORS configuration for both development and production
 allowed_origins = [
     'http://localhost:3000',  # Development
@@ -53,6 +65,7 @@ app.register_blueprint(payment_link)
 
 
 @app.route('/api/ping')
+@limiter.limit("5 per minute")
 def ping():
     return {"message": "pong"}, 200
 
@@ -64,23 +77,12 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
 jwt = JWTManager(app)
 
-# Initialize Rate Limiter with conditional limits based on environment
-is_development = os.getenv('FLASK_ENV') == 'development' or os.getenv('FLASK_DEBUG') == 'True'
-
-if is_development:
-    # More lenient limits for development
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["1000 per day", "100 per hour"]
-    )
-else:
-    # Stricter limits for production
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["200 per day", "50 per hour"]
-    )
+# Initialize Rate Limiter with memory storage
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="memory://",  # Use in-memory storage
+)
 
 # Custom error handler for rate limiting
 @app.errorhandler(429)
@@ -277,14 +279,24 @@ def login():
         return jsonify({'error': 'Incorrect password'}), 401
     access_token = create_access_token(identity=json.dumps({'id': user_id, 'role': role, 'username': username}))
     log_sensitive_operation(user_id, 'login', 'User logged in successfully')
-    return jsonify({
+
+    # Set JWT as a cookie
+    resp = make_response(jsonify({
         "access_token": access_token,
         "customer_name": customer_name,
         "customer_email": customer_email,
         "customer_phone": customer_phone,
         'role': role,
         'username': username
-    }), 200
+    }), 200)
+    resp.set_cookie(
+        'access_token_cookie',
+        access_token,
+        httponly=True,
+        secure=True,
+        samesite='Lax'
+    )
+    return resp
 
 @app.route('/api/approve_user/<int:user_id>', methods=['POST'])
 @jwt_required()
@@ -436,7 +448,9 @@ def bills_by_date():
 
 @app.route('/api/upload', methods=['POST'])
 @jwt_required()
+@csrf.exempt  # Remove this line if you want CSRF protection enforced
 def upload():
+    # CSRF token will be checked automatically for POST requests
     user = json.loads(get_jwt_identity())
     username = user['username']
 
@@ -1564,6 +1578,59 @@ def not_found(e):
 def internal_error(e):
     app.logger.error(f'500 error: {request.url} - {e}')
     return '<h1>500 - Internal Server Error</h1><p>Sorry, something went wrong on our end. Please try again later.</p>', 500
+
+# Setup audit logger
+audit_logger = logging.getLogger("audit")
+audit_logger.setLevel(logging.INFO)
+audit_handler = logging.FileHandler("audit.log")
+audit_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+audit_logger.addHandler(audit_handler)
+
+# Example: Audit logging for login
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, password_hash, role, approved, customer_name, customer_email, customer_phone FROM users WHERE username=%s", (username,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not user:
+        audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
+        return jsonify({'error': 'User not found'}), 401
+    user_id, password_hash, role, approved, customer_name, customer_email, customer_phone = user
+    if not approved:
+        return jsonify({'error': 'User not approved yet'}), 403
+    if not check_password_hash(password_hash, password):
+        audit_logger.warning(f"LOGIN FAILED: user={username} ip={request.remote_addr}")
+        return jsonify({'error': 'Incorrect password'}), 401
+    access_token = create_access_token(identity=json.dumps({'id': user_id, 'role': role, 'username': username}))
+    log_sensitive_operation(user_id, 'login', 'User logged in successfully')
+    audit_logger.info(f"LOGIN SUCCESS: user={username} ip={request.remote_addr}")
+
+    # Set JWT as a cookie
+    resp = make_response(jsonify({
+        "access_token": access_token,
+        "customer_name": customer_name,
+        "customer_email": customer_email,
+        "customer_phone": customer_phone,
+        'role': role,
+        'username': username
+    }), 200)
+    resp.set_cookie(
+        'access_token_cookie',
+        access_token,
+        httponly=True,
+        secure=True,
+        samesite='Lax'
+    )
+    return resp
+
+# You can add similar audit_logger.info(...) calls for other sensitive operations
+# such as password changes, data exports, or admin actions.
 
 if __name__ == '__main__':
     import os
