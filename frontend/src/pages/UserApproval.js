@@ -1,96 +1,125 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert, Snackbar } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Container, Typography, Box, Button, List, ListItem, ListItemText, Snackbar, Alert } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 
 function UserApproval({ t = x => x }) {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [unapprovedUsers, setUnapprovedUsers] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const navigate = useNavigate();
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    setError(null);
-    const token = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='))?.split('=')[1];
-    if (!token) {
-      setError('Not authenticated');
-      setLoading(false);
-      return;
-    }
+  const fetchUnapprovedUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/unapproved_users`, {
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
+        navigate('/login');
+        return;
+      }
+
+      console.log('Fetching unapproved users from:', `${API_BASE_URL}/api/unapproved_users`);
+      const res = await fetch(`${API_BASE_URL}/api/unapproved_users`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Failed to fetch users');
-      const data = await response.json();
-      setUsers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(err.message);
-      setUsers([]);
-    } finally {
-      setLoading(false);
+      console.log('Response status:', res.status);
+
+      if (res.status === 401) {
+        setSnackbar({ open: true, message: 'Session expired. Please log in again.', severity: 'error' });
+        localStorage.clear();
+        navigate('/login');
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Response data:', data);
+        setUnapprovedUsers(data);
+      } else {
+        setSnackbar({ open: true, message: 'Failed to fetch users', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Error fetching unapproved users:', error);
+      setSnackbar({ open: true, message: 'Failed to fetch users', severity: 'error' });
     }
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    fetchUnapprovedUsers();
+  }, [navigate]);
 
-  const handleApprove = async (userId) => {
-    const token = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='))?.split('=')[1];
-    if (!token) {
-      setSnackbar({ open: true, message: 'Not authenticated', severity: 'error' });
-      return;
-    }
+  const handleApprove = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/approve_user/${userId}`, {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setSnackbar({ open: true, message: 'Authentication required. Please log in again.', severity: 'error' });
+        navigate('/login');
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/approve_user/${id}`, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Failed to approve user');
-      setSnackbar({ open: true, message: t('userApproved') || 'User approved', severity: 'success' });
-      fetchUsers();
-    } catch (err) {
-      setSnackbar({ open: true, message: t('failedToApproveUser') || 'Approval failed', severity: 'error' });
+
+      if (res.status === 401) {
+        setSnackbar({ open: true, message: 'Session expired. Please log in again.', severity: 'error' });
+        localStorage.clear();
+        navigate('/login');
+        return;
+      }
+
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'User approved successfully', severity: 'success' });
+        fetchUnapprovedUsers();
+      } else {
+        setSnackbar({ open: true, message: 'Failed to approve user', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Error approving user:', error);
+      setSnackbar({ open: true, message: 'Failed to approve user', severity: 'error' });
     }
   };
 
-  const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
-
   return (
     <Container>
-      <Typography variant="h4" gutterBottom>{t('userApproval')}</Typography>
-      {loading ? <CircularProgress /> : error ? <Alert severity="error">{error}</Alert> : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('username')}</TableCell>
-                <TableCell>{t('email')}</TableCell>
-                <TableCell>{t('actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map(user => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.customer_email}</TableCell>
-                  <TableCell>
-                    <Button variant="contained" color="primary" onClick={() => handleApprove(user.id)}>
-                      {t('approve')}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleCloseSnackbar} message={snackbar.message} />
+      <Box sx={{ my: 4 }}>
+        <Button onClick={() => navigate('/dashboard')} variant="contained" color="primary" style={{ color: '#fff', marginBottom: 16 }}>
+          {t('backToDashboard')}
+        </Button>
+        <Typography variant="h4" gutterBottom>{t('userApproval')}</Typography>
+        <List>
+          {unapprovedUsers.map((user) => (
+            <ListItem key={user.id}>
+              <ListItemText
+                primary={user.username}
+                secondary={
+                  <>
+                    <div>{t('email')}: {user.customer_email}</div>
+                    <div>{t('companyName')}: {user.customer_name}</div>
+                    <div>{t('phone')}: {user.customer_phone}</div>
+                    <div>{t('role')}: {t(user.role)}</div>
+                  </>
+                }
+              />
+              <Button variant="contained" color="primary" onClick={() => handleApprove(user.id)}>
+                {t('approve')}
+              </Button>
+            </ListItem>
+          ))}
+        </List>
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
     </Container>
   );
 }
 
-export default UserApproval;
+export default UserApproval; 

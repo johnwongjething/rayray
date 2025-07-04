@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container, Typography, Box, TextField, Button, Snackbar, Alert,
-  Table, TableHead, TableBody, TableRow, TableCell, TableContainer, Paper, CircularProgress
+  Table, TableHead, TableBody, TableRow, TableCell
 } from '@mui/material';
 import { API_BASE_URL } from '../config';
 import LoadingModal from '../components/LoadingModal';
 
 export default function BillSearch({ t = x => x }) {
-  // Existing advanced search state
   const [form, setForm] = useState({
     unique_number: '',
     bl_number: '',
@@ -21,31 +20,6 @@ export default function BillSearch({ t = x => x }) {
   const username = localStorage.getItem('username');
   const navigate = useNavigate();
 
-  // Simple search state for merged code
-  const [query, setQuery] = useState('');
-  const [bills, setBills] = useState([]);
-  const [error, setError] = useState(null);
-
-  // Simple search handler (merged code)
-  const handleSimpleSearch = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/bill_search?q=${encodeURIComponent(query)}`, {
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to fetch bills');
-      const data = await response.json();
-      setBills(data.bills || []);
-    } catch (err) {
-      setError('Failed to fetch bills');
-      setBills([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Advanced search handler (existing)
   useEffect(() => {
     if (role === 'customer') {
       const token = localStorage.getItem('token');
@@ -112,7 +86,6 @@ export default function BillSearch({ t = x => x }) {
     }
   };
 
-  // Utility functions (existing)
   const getStatus = (record) => {
     if (record.status === t('invoiceSent')) return t('invoiceSent');
     if (record.status === t('awaitingBankIn')) return t('awaitingBankIn');

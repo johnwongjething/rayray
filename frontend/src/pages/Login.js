@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Container, Typography, Box, TextField, Button, Snackbar, Alert } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 
 function Login({ t = x => x }) {
@@ -16,12 +16,11 @@ function Login({ t = x => x }) {
       const res = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Important: send cookies and receive JWT in cookie
         body: JSON.stringify(formData)
       });
       const data = await res.json();
       if (res.ok) {
-        // Optionally store in localStorage for role/username, but JWT is in cookie
+        localStorage.setItem('token', data.access_token);
         localStorage.setItem('role', data.role);
         localStorage.setItem('username', data.username);
         if (data.customer_name) localStorage.setItem('customer_name', data.customer_name);
@@ -67,12 +66,12 @@ function Login({ t = x => x }) {
           </Button>
         </form>
         <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <a href="/forgot-password" style={{ textDecoration: 'none', color: '#1976d2' }}>
+          <Link to="/forgot-password" style={{ textDecoration: 'none', color: '#1976d2' }}>
             {t('forgotPassword')}
-          </a>
-          <a href="/forgot-username" style={{ textDecoration: 'none', color: '#1976d2' }}>
+          </Link>
+          <Link to="/forgot-username" style={{ textDecoration: 'none', color: '#1976d2' }}>
             {t('forgotUsername')}
-          </a>
+          </Link>
         </Box>
         <Snackbar
           open={!!error}
