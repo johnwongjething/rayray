@@ -32,4 +32,4 @@ uploads/
 
 # Backup files
 *.bak
-*.swp 
+*.swp "" 
